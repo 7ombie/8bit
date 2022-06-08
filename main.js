@@ -57,20 +57,38 @@ const serialize = function(instruction) {
     else return instruction.mnemonic;
 };
 
-const enumerate = function(register) {
+const get = function(instruction, ...indices) {
 
-    /* This helper takes a register token and returns its associated
-    enumeration (from `0` to `5`, inclusive). */
+    /* This helper takes an instruction and one or two indices. It uses
+    the first index to refer to a child of the instruction. When present,
+    the second index is used to index the child (which implies an array).
+    In either case, the function returns the result.
 
-    return ["x", "y", "z", "pc", "sp", "fx"].indexOf(register.value);
+    This function compliments `reg` and `num`, and together these three
+    helpers form a mini DSL that can be used to easily define callbacks
+    suitable for passing to `register`. */
+
+    const [x, y] = indices;
+    const children = instruction.children;
+
+    return indices.length === 1 ? children[x] : children[x][y];
 };
 
-const evaluate = function(literal) {
+const reg = function(code, register) {
+
+    /* This helper takes a base opcode (the lowest opcode in a mnemonic
+    group) and a register token. It enumerates the register, adds the
+    enumeration to the code, and returns the result. Also see `get`. */
+
+    return code + ["x", "y", "z", "pc", "sp", "fx"].indexOf(register.value);
+};
+
+const num = function(literal) {
 
     /* This helper takes some kind of number literal or reference, and
     returns its numerical value (resolving references automatically).
     Note that negative numbers are replaced with the equivalent
-    positive number (-1 becomes +255 etc). */
+    positive number (-1 becomes +255 etc). Also see `get`. */
 
     let result;
 
@@ -78,19 +96,6 @@ const evaluate = function(literal) {
     else result = parseInt(literal.value.replace("#", "0x"));
 
     return result >= 0 ? result : 256 + result;
-};
-
-const get = function(instruction, ...indices) {
-
-    /* This helper takes an instruction and one or two indices. It uses
-    the first index to refer to a child of the instruction. When present,
-    the second index is used to index the child (which implies an array).
-    In either case, the function returns the result. */
-
-    const [x, y] = indices;
-    const children = instruction.children;
-
-    return indices.length === 1 ? children[x] : children[x][y];
 };
 
 const resolve = function(patterns, handler) {
@@ -149,8 +154,8 @@ const registerALUOperation = function(name, code) {
     function registers the required handlers, computing patterns and
     opcodes as needed. */
 
-    register(`${name} <Number>`, i => [code, evaluate(get(i, 0))]);
-    register(`${name} <Index>`, i => [code + 1 + enumerate(get(i, 0))]);
+    register(`${name} <Number>`, i => [code, num(get(i, 0))]);
+    register(`${name} <Index>`, i => [reg(code + 1, get(i, 0))]);
     register(`${name} []`, code + 4);
 };
 
@@ -160,8 +165,8 @@ const registerBranchOperation = function(name, code) {
     base opcode for the mnemonic, and registers the required handlers. */
 
     register(name, code);
-    register(`${name} <Number>`, i => [code + 1, evaluate(get(i, 0))]);
-    register(`${name} [<Number>]`, i => [code + 2, evaluate(get(i, 0, 0))]);
+    register(`${name} <Number>`, i => [code + 1, num(get(i, 0))]);
+    register(`${name} [<Number>]`, i => [code + 2, num(get(i, 0, 0))]);
     register(`${name} []`, code + 3);
 };
 
@@ -176,24 +181,55 @@ register("nop", 0x04);
 registerBranchOperation("race", 0x05);
 registerBranchOperation("nudge", 0x09);
 registerBranchOperation("jump", 0x0D);
-registerBranchOperation("fork", 0x21);
+registerBranchOperation("fork", 0x11);
+registerBranchOperation("call", 0x15);
+
+register("set", 0x19);
+register("set <Register>", i => [reg(0x1A, get(i, 0))]);
+
+register("clear", 0x20);
+register("clear <Register>", i => [reg(0x21, get(i, 0))]);
+
+register("copy <Register>", i => [reg(0x27, get(i, 0))]);
+
+register("sync <Register>", i => [reg(0x2D, get(i, 0))]);
+
+register("load <Number>", i => [0x33, num(get(i, 0))]);
+register("load [<Index>]", i => [reg(0x34, get(i, 0, 0))]);
+register("load [<Number>]", i => [0x37, num(get(i, 0, 0))]);
+
+register("load [<Number> <Index>]", i => {
+
+    return [reg(0x38, get(i, 0, 1)), num(get(i, 0, 0))];
+});
+
+register("load <Index> <Number>", i => {
+
+    return [reg(0x3B, get(i, 0)), num(get(i, 1))];
+});
+
+register("load <Index> [<Number>]", i => {
+
+    return [reg(0x3E, get(i, 0)), num(get(i, 1, 0))];
+});
+
+register("store [<Index>]", i => [reg(0x41, get(i, 0, 0))]);
+register("store [<Number>]", i => [0x44, num(get(i, 0, 0))]);
+
+register("store [<Number> <Index>]", i => {
+
+    return [reg(0x45, get(i, 0, 1)), num(get(i, 0, 0))];
+});
+
+register("store <Index> [<Number>]", i => {
+
+    return [reg(0x48, get(i, 0)), num(get(i, 1, 0))];
+});
 
 registerALUOperation("add", 0x48);
 registerALUOperation("sub", 0x4D);
 registerALUOperation("mul", 0x52);
 registerALUOperation("div", 0x57);
-
-register("push", 0xA0);
-register("push <Register>", i => [0xA1 + enumerate(get(i, 0))]);
-register("push <Number>", i => [0xA7, evaluate(get(i, 0))]);
-
-register("load <Index> [<Number>]", i => {
-
-    const register = enumerate(get(i, 0));
-    const address = evaluate(get(i, 1, 0));
-
-    return [0x09 + register, address];
-});
 
 //// DEFINE AND EXPORT THE ENTRYPOINT CODEGEN FUNCTION...
 
@@ -231,8 +267,18 @@ loop: sub [], sub loop
 spam: fork, fork spam, fork [], fork [+150]
 done, halt, reset, return
 race, race loop, race [spam], nop, race [+10]
-load x [#80]
-push, push pc, push x, push 7
+set, set x, set z, set pc, set sp, set fx
+clear x, clear fx, clear
+copy x, copy pc, copy sp
+sync fx, sync y
+load 4, load loop
+load [x], load [y], load [9], load [spam]
+load [spam x], load [#3E y]
+load y 6, load z #CC, load y [6], load z [#CC]
+
+store [x], store [y], store [9], store [spam]
+store [spam x], store [#3E y]
+store y [6], store z [#CC]
 `;
 
 generate(source);
