@@ -8,13 +8,13 @@ let TOKEN, TOKENS;
 
 class GrammaticalError extends AssemblySyntaxError {
 
-    /* This custom error class is thrown when one kind of token was
-    expected, but some other type was found. */
+    /* This custom error class is thrown when a mnemonic is expected
+    (at the start of an instruction), but something else was found. */
 
     constructor(expected) {
 
         const { line, column } = TOKEN.location;
-        const message = `Expected ${expected} (found ${TOKEN.type}).`;
+        const message = `Expected an initial Mnemonic (found ${TOKEN.type}).`;
 
         super(message, line, column);
     }
@@ -22,14 +22,18 @@ class GrammaticalError extends AssemblySyntaxError {
 
 class NestingError extends AssemblySyntaxError {
 
-    /* This custom error class is thrown when a memory expression is
-    opened, and not closed before the instruction is terminated. */
+    /* This custom error class is thrown when brackets are improperly
+    nested within an instruction. */
 
-    constructor() {
+    constructor(open) {
+
+        /* This constructor takes a bool that indicates whether the
+        issue was an opener without a closer or the opposite. */
 
         const { line, column } = TOKEN.location;
 
-        super("Instruction terminated while nested.", line, column);
+        if (open) super("Instruction terminated while nested.", line, column);
+        else super("Closer found without a preceding Opener.", line, column);
     }
 }
 
@@ -72,11 +76,15 @@ const gatherChildren = function(nested=false) {
     while (advance().type !== "Terminator") {
 
         if (TOKEN.type === "Opener") children.push(gatherChildren(true));
-        else if (TOKEN.type === "Closer") return children;
-        else children.push(TOKEN);
+        else if (TOKEN.type === "Closer") {
+
+            if (nested) return children;
+            else throw new NestingError(false);
+
+        } else children.push(TOKEN);
     }
 
-    if (nested) { throw new NestingError() } else return children;
+    if (nested) { throw new NestingError(true) } else return children;
 };
 
 //// DEFINE AND EXPORT ENTRYPOINT PARSE FUNCTION...

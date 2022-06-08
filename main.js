@@ -14,7 +14,7 @@ const HANDLERS = Object.create(null);
 
 //// DEFINE THE CUSTOM ERROR CLASS FOR THE CODEGEN MODULE...
 
-class GrammaticalError extends AssemblySyntaxError {
+class SemanticError extends AssemblySyntaxError {
 
     /* This custom error class is thrown when one kind of token was
     expected, but some other type was found. */
@@ -23,7 +23,7 @@ class GrammaticalError extends AssemblySyntaxError {
 
         const { line, column } = instruction.location;
 
-        super(`Cannot parse \`${pattern}\`.`, line, column);
+        super(`Incomprehensible grammar \`${pattern}\`.`, line, column);
     }
 }
 
@@ -68,10 +68,16 @@ const enumerate = function(register) {
 const evaluate = function(literal) {
 
     /* This helper takes some kind of number literal or reference, and
-    returns its numerical value (resolving references automatically). */
+    returns its numerical value (resolving references automatically).
+    Note that negative numbers are replaced with the equivalent
+    positive number (-1 becomes +255 etc). */
 
-    if (literal.type === "Reference") return LABELS[literal.value];
-    else return parseInt(literal.value.replace("#", "0x"));
+    let result;
+
+    if (literal.type === "Reference") result = LABELS[literal.value];
+    else result = parseInt(literal.value.replace("#", "0x"));
+
+    return result >= 0 ? result : 256 + result;
 };
 
 const get = function(instruction, ...indices) {
@@ -95,8 +101,8 @@ const resolve = function(patterns, handler) {
     in any pattern by generating a complete set of new patterns that
     each replace the first instance of the abstract class with one
     of its subclasses, recusively, matching every possible combin-
-    ation of concrete classes, then registers the set of concrete
-    patterns instead. */
+    ation of concrete classes (`serialize` returns patterns that
+    always use the concrete classes). */
 
     const expand = function(pattern, target, ...group) {
 
@@ -107,6 +113,9 @@ const resolve = function(patterns, handler) {
 
         return group.map(item => pattern.replace(target, item));
     };
+
+    // expand and recur for any abstract classes, registering patterns
+    // that only contain concrete classes...
 
     for (let pattern of patterns) if (pattern.includes("<Register>")) {
 
@@ -124,7 +133,9 @@ const register = function(...args) {
     /* This helper takes one or more pattern strings, followed by either
     a callback or a number (which is wrapped by a function that takes an
     instruction and returns an array containing the given number). Once
-    the callback is ready, it is used to resolve the given patterns. */
+    the callback is sorted, the `reolve` function is used to actually
+    resolve and register the given patterns (this function is really
+    just a wrapper that offers a more convenient API). */
 
     const callback = args.pop();
 
@@ -205,7 +216,7 @@ const generate = function (source) {
 
             put(...result, pattern)
 
-        } else throw new GrammaticalError(instruction, pattern);
+        } else throw new SemanticError(instruction, pattern);
     }
 };
 
@@ -213,7 +224,7 @@ const generate = function (source) {
 
 
 const source = `
-loop: add 3, add x, loop: add y
+loop: add -3, add x, loop: add y
 add []
 sub +128, sub z, sub y
 loop: sub [], sub loop
