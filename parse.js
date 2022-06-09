@@ -91,7 +91,7 @@ const gatherChildren = function(nested=false) {
 
 export const parse = function * (source) {
 
-    /* This entrypoint function takes a source string, tokenizes it,
+    /* This entrypoint generator takes a source string, tokenizes it,
     then parses the token stream into a parse tree that will be valid
     if the source is valid, and is easier to validate (during the next
     stage) in any case. */

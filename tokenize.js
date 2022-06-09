@@ -1,5 +1,3 @@
-import { put, not } from "./helpers.js";
-
 //// DEFINE MODULE-WIDE GLOBAL VARIABLES...
 
 let PREVIOUS_TOKEN;
@@ -17,44 +15,22 @@ const terminators = comma + newline;
 const specials = comma + opener + closer;
 const irregulars = specials + whitespace;
 
-export const indices = ["x", "y", "z"];
-export const status = ["pc", "sp", "fx"];
+const indices = ["x", "y", "z"];
+const status = ["pc", "sp", "fx"];
 
-export const indexMnemonics = ["inc", "dec"];
-export const memoryMnemonics = ["load", "store"];
-export const dataMnemonics = ["set", "clear", "copy", "sync",];
-export const flowMnemonics = ["nop", "return", "reset", "halt", "done"];
-export const bankMnemonics = ["databank", "codebank", "stackbank", "iobank"];
-export const copyMnemonics = ["copydata", "copycode", "copystack", "copyio"];
-export const stackMnemonics = ["push", "pop", "drop", "swap", "dupe"];
-export const pipeMnemonics = ["queue", "flush", "drain", "count"];
-
-export const unaryMnemonics = [
-    "not", "truthy", "falsey", "clt", "ctz", "nsa",
+const mnemonics = [
+    "nop", "return", "reset", "halt", "done",
+    "jump", "fork", "call","race", "nudge", "lock", "free",
+    "set", "clear", "copy", "sync", "load", "store",
+    "add", "sub", "mul", "div", "mod", "inc", "dec",
+    "and", "or", "xor", "zsh", "ssh", "lsh", "rot",
+    "eq", "gt", "lt", "neq", "ngt", "nlt",
+    "not", "clz", "ctz", "nsa", "truthy", "falsey",
+    "databank", "codebank", "stackbank", "iobank",
+    "copydata", "copycode", "copystack", "copyio",
+    "push", "pop", "drop", "swap", "dupe",
+    "queue", "flush", "drain", "count",
 ];
-
-export const binaryMnemonics = [
-    "add", "sub", "mul", "div", "mod",
-    "and", "or", "xor", "shr", "shl", "rtr", "rtl",
-    "eq", "gt", "lt", "neq", "ngt", "nlt"
-];
-
-export const branchMnemonics = [
-    "jump", "fork", "call","race", "nudge", "lock", "free"
-];
-
-export const mnemonics = Array()
-    .concat(dataMnemonics)
-    .concat(memoryMnemonics)
-    .concat(indexMnemonics)
-    .concat(unaryMnemonics)
-    .concat(binaryMnemonics)
-    .concat(branchMnemonics)
-    .concat(flowMnemonics)
-    .concat(bankMnemonics)
-    .concat(copyMnemonics)
-    .concat(stackMnemonics)
-    .concat(pipeMnemonics);
 
 const reference = /^[a-zA-Z][a-zA-Z0-9]*$/;
 const assignment = /^[a-zA-Z][a-zA-Z0-9]*:$/;
@@ -114,6 +90,8 @@ class TerminationError extends AssemblySyntaxError {
 }
 
 //// DEFINE ANY LOCAL HELPER FUNCTIONS...
+
+const not = arg => ! arg;
 
 const decimal = function(value) {
 
@@ -197,9 +175,9 @@ const classify = function(value, line, column, end) {
 
 export const tokenize = function * (source) {
 
-    /* This generator function takes a source string and yields its
-    tokens one at a time, as `Token` subclasses. Note that line and
-    column numbers are one-indexed. */
+    /* This entrypoint generator takes a source string and yields its
+    tokens one at a time. Note that line, column and terminal numbers
+    are all one-indexed. */
 
     const on = candidates => candidates.includes(character);
 
@@ -209,8 +187,8 @@ export const tokenize = function * (source) {
 
     const legal = function(character) {
 
-        /* This helper takes a character, and returns a bool that is `true`
-        for legal characters, and `false` otherwise. */
+        /* This helper takes a character, and returns a bool that is
+        `true` for legal characters, and `false` otherwise. */
 
         if (character === newline) return true;
         else if (unused.includes(character)) return false;
@@ -222,11 +200,11 @@ export const tokenize = function * (source) {
 
     const advance = function() {
 
-        /* This helper advances the lexer by a single character, updating
-        the nonlocal `character` and `index` variables, and returning the
-        character too, all assuming it exists and is legal. The function
-        returns `undefined` if the source has been exhausted, and will
-        throw an `IllegalCharacter` error where appropriate. */
+        /* This helper advances the lexer by a single character, updat-
+        ing the nonlocal `character` and `index` variables, and return-
+        ing the character too, all assuming it exists and is legal. The
+        function returns `undefined` if the source has been exhausted,
+        and will throw an `IllegalCharacter` error when appropriate. */
 
         if ((character = source[++index]) === undefined) return;
 
@@ -246,7 +224,8 @@ export const tokenize = function * (source) {
     while (advance()) {
 
         if (on(space)) continue;
-        else if (comment()) do { advance() } while (character !== newline)
+
+        if (comment()) do { advance() } while (character !== newline)
 
         [value, column, token] = [character, index - edge, undefined];
 
