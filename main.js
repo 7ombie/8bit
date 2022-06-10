@@ -1,5 +1,13 @@
 import { assemble } from "./zen80.js";
 
+
+
+
+
+
+
+
+
 const source = `
 loop: add -3, add x, loop: add y
 add []
@@ -24,6 +32,9 @@ eq 3, neq x, gt #DD, lt +100, nlt y
 not [], truthy [], falsey
 ctz, nsa, clz, lock [], free 1, lock, free [#90]
 push, push x, pop y, pop fx, push pc, pop sp
+drop, peek, dupe, databank, copyio
+queue 1, queue [], queue x
+flush, drain, array
 `;
 
 for (let byte of assemble(source)) console.log(byte);

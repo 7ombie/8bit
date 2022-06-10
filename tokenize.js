@@ -15,21 +15,21 @@ const terminators = comma + newline;
 const specials = comma + opener + closer;
 const irregulars = specials + whitespace;
 
-const indices = ["x", "y", "z"];
-const status = ["pc", "sp", "fx"];
+const indexRegisters = ["x", "y", "z"];
+const statusRegisters = ["pc", "sp", "fx"];
 
 const mnemonics = [
     "nop", "return", "reset", "halt", "done",
-    "jump", "fork", "call","race", "nudge", "lock", "free",
+    "jump", "fork", "call", "race", "nudge", "lock", "free",
     "set", "clear", "copy", "sync", "load", "store",
-    "add", "sub", "mul", "div", "mod", "inc", "dec",
+    "inc", "dec", "add", "sub", "addfx", "subfx", "mul", "div", "mod",
     "and", "or", "xor", "zsh", "ssh", "lsh", "rot",
     "eq", "gt", "lt", "neq", "ngt", "nlt",
     "not", "clz", "ctz", "nsa", "truthy", "falsey",
+    "push", "pop", "drop", "dupe", "swap", "peek", "void",
+    "queue", "flush", "drain", "array", "length",
     "databank", "codebank", "stackbank", "iobank",
     "copydata", "copycode", "copystack", "copyio",
-    "push", "pop", "drop", "swap", "dupe",
-    "queue", "flush", "drain", "count",
 ];
 
 const reference = /^[a-zA-Z][a-zA-Z0-9]*$/;
@@ -147,9 +147,9 @@ const classify = function(value, line, column, end) {
 
     if (mnemonics.includes(value)) return init("Mnemonic");
 
-    if (indices.includes(value)) return init("Index");
+    if (indexRegisters.includes(value)) return init("Index");
 
-    if (status.includes(value)) return init("Status");
+    if (statusRegisters.includes(value)) return init("Status");
 
     if (reference.test(value)) return init("Reference");
 

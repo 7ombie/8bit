@@ -24,114 +24,93 @@ registerBranchOperation("nudge", 0x09);
 registerBranchOperation("jump", 0x0D);
 registerBranchOperation("fork", 0x11);
 registerBranchOperation("call", 0x15);
+registerBranchOperation("lock", 0x1A);
+registerBranchOperation("free", 0x1D);
 
-register("set", 0x19);
-registerSimpleOperation("set", 0x1A);
+register("set", 0x21);
+registerSimpleOperation("set", 0x22);
+register("clear", 0x28);
+registerSimpleOperation("clear", 0x29);
+registerSimpleOperation("copy", 0x2F);
+registerSimpleOperation("sync", 0x35);
 
-register("clear", 0x20);
-registerSimpleOperation("clear", 0x21);
+register("load [<Index>]", i => [reg(0x3B, get(i, 0, 0))]);
+register("load <Number>", i => [0x3E, num(get(i, 0))]);
+register("load [<Number>]", i => [0x3F, num(get(i, 0, 0))]);
+register("load [<Number> <Index>]", i => [reg(0x40, get(i, 0, 1)), num(get(i, 0, 0))]);
+register("load <Index> <Number>", i => [reg(0x43, get(i, 0)), num(get(i, 1))]);
+register("load <Index> [<Number>]", i => [reg(0x46, get(i, 0)), num(get(i, 1, 0))]);
 
-registerSimpleOperation("copy", 0x27);
+register("store [<Index>]", i => [reg(0x49, get(i, 0, 0))]);
+register("store [<Number>]", i => [0x4C, num(get(i, 0, 0))]);
+register("store [<Number> <Index>]", i => [reg(0x4D, get(i, 0, 1)), num(get(i, 0, 0))]);
+register("store <Index> [<Number>]", i => [reg(0x50, get(i, 0)), num(get(i, 1, 0))]);
 
-registerSimpleOperation("sync", 0x2D);
+register("inc", 0x53);
+register("inc <Index>", i => [reg(0x54, get(i, 0))]);
+register("inc []", 0x57);
+register("dec", 0x58);
+register("dec <Index>", i => [reg(0x59, get(i, 0))]);
+register("dec []", 0x5C);
 
-register("load <Number>", i => [0x33, num(get(i, 0))]);
-register("load [<Index>]", i => [reg(0x34, get(i, 0, 0))]);
-register("load [<Number>]", i => [0x37, num(get(i, 0, 0))]);
+registerBinaryOperation("add", 0x5D);
+registerBinaryOperation("sub", 0x62);
+registerBinaryOperation("addfx", 0x67);
+registerBinaryOperation("subfx", 0x6C);
+registerBinaryOperation("mul", 0x71);
+registerBinaryOperation("div", 0x76);
+registerBinaryOperation("mod", 0x7B);
 
-register("load [<Number> <Index>]", i => {
+registerBinaryOperation("eq", 0x80);
+registerBinaryOperation("gt", 0x85);
+registerBinaryOperation("lt", 0x8A);
+registerBinaryOperation("neq", 0x8F);
+registerBinaryOperation("ngt", 0x94);
+registerBinaryOperation("nlt", 0x99);
 
-    return [reg(0x38, get(i, 0, 1)), num(get(i, 0, 0))];
-});
+registerBinaryOperation("and", 0x9E);
+registerBinaryOperation("or", 0xA3);
+registerBinaryOperation("xor", 0xA8);
 
-register("load <Index> <Number>", i => {
+registerBinaryOperation("zsh", 0xAD);
+registerBinaryOperation("ssh", 0xB2);
+registerBinaryOperation("lsh", 0xB7);
+registerBinaryOperation("rot", 0xBC);
 
-    return [reg(0x3B, get(i, 0)), num(get(i, 1))];
-});
+registerUnaryOperation("clz", 0xC1);
+registerUnaryOperation("ctz", 0xC3);
+registerUnaryOperation("nsa", 0xC5);
 
-register("load <Index> [<Number>]", i => {
+registerUnaryOperation("not", 0xC7);
+registerUnaryOperation("truthy", 0xC9);
+registerUnaryOperation("falsey", 0xCB);
 
-    return [reg(0x3E, get(i, 0)), num(get(i, 1, 0))];
-});
+register("push", 0xCD);
+registerSimpleOperation("push", 0xCE);
+register("pop", 0xD5);
+registerSimpleOperation("pop", 0xD6);
 
-register("store [<Index>]", i => [reg(0x41, get(i, 0, 0))]);
-register("store [<Number>]", i => [0x44, num(get(i, 0, 0))]);
+register("drop", 0xDC);
+register("dupe", 0xDD);
+register("swap", 0xDE);
+register("peek", 0xDF);
+register("void", 0xE0);
 
-register("store [<Number> <Index>]", i => {
+register("queue", 0xE1);
+registerSimpleOperation("queue", 0xE2);
+register("queue <Number>", i => [0xE8, num(get(i, 0))]);
+register("queue []", 0xE9);
 
-    return [reg(0x45, get(i, 0, 1)), num(get(i, 0, 0))];
-});
+register("flush", 0xEA);
+register("drain", 0xEB);
+register("array", 0xEC);
 
-register("store <Index> [<Number>]", i => {
+register("databank", 0xED);
+register("codebank", 0xEE);
+register("stackbank", 0xEF);
+register("iobank", 0xF0)
 
-    return [reg(0x48, get(i, 0)), num(get(i, 1, 0))];
-});
-
-registerBinaryOperation("add", 0x4B);
-registerBinaryOperation("sub", 0x50);
-registerBinaryOperation("mul", 0x55);
-registerBinaryOperation("div", 0x5A);
-registerBinaryOperation("mod", 0x5F);
-
-register("inc", 0x64);
-register("inc <Index>", i => [reg(0x65, get(i, 0))]);
-register("inc []", 0x68);
-
-register("dec", 0x69);
-register("dec <Index>", i => [reg(0x6A, get(i, 0))]);
-register("dec []", 0x6D);
-
-registerBinaryOperation("eq", 0x6E);
-registerBinaryOperation("gt", 0x73);
-registerBinaryOperation("lt", 0x78);
-registerBinaryOperation("neq", 0x7D);
-registerBinaryOperation("ngt", 0x82);
-registerBinaryOperation("nlt", 0x87);
-
-registerBinaryOperation("and", 0x8C);
-registerBinaryOperation("or", 0x91);
-registerBinaryOperation("xor", 0x96);
-
-registerBinaryOperation("zsh", 0x9B);
-registerBinaryOperation("ssh", 0xA0);
-registerBinaryOperation("lsh", 0xA5);
-registerBinaryOperation("rot", 0xAA);
-
-registerUnaryOperation("not", 0xAF);
-registerUnaryOperation("clz", 0xB1);
-registerUnaryOperation("ctz", 0xB3);
-registerUnaryOperation("nsa", 0xB5);
-registerUnaryOperation("truthy", 0xB7);
-registerUnaryOperation("falsey", 0xB9);
-
-registerBranchOperation("lock", 0xBB);
-registerBranchOperation("free", 0xBF);
-
-register("push", 0xC3);
-registerSimpleOperation("push", 0xC4);
-
-register("pop", 0xCB);
-registerSimpleOperation("pop", 0xCC);
-
-register("drop", 0xD2);
-register("swap", 0xD3);
-register("dupe", 0xD4);
-
-register("databank", 0xD5);
-register("codebank", 0xD6);
-register("stackbank", 0xD7);
-register("iobank", 0xD8);
-
-register("copydata", 0xD9);
-register("copycode", 0xDA);
-register("copystack", 0xDB);
-register("copyio", 0xDC);
-
-register("queue", 0xDE);
-registerSimpleOperation("queue", 0xDF);
-register("queue <Number>", i => [0xE5, num(get(i, 0))]);
-register("queue []", 0xE6);
-
-register("flush", 0xE7);
-register("drain", 0xE8);
-register("count", 0xE9);
+register("copydata", 0xF1);
+register("copycode", 0xF2);
+register("copystack", 0xF3);
+register("copyio", 0xF4);
