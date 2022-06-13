@@ -52,7 +52,6 @@ const initialize = function(label) {
     instruction.mnemonic = TOKEN.value;
     instruction.location = TOKEN.location;
     instruction.children = gatherChildren();
-    instruction.terminal = TOKEN.location;
 
     return instruction;
 };

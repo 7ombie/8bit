@@ -24,6 +24,14 @@ These *escape names* are defined by the language, and are documented in *Appendi
 
 Note: As curly braces are used to wrap escape sequences, they cannot appear in a string otherwise (and have their own names and aliases).
 
+//// MAP THE ESCAPE NAMES TO THE CORRESPONDING ORDINALS...
+
+const names = {
+    T: "#09", TAB: "#09",
+    N: "#0A", NEWLINE: "#0A",
+    DQ: "#22", OB: "#7B", CB: "#7D"
+};
+
 DEVELOPER NOTES
 ===============
 

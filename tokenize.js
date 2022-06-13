@@ -4,7 +4,8 @@ let PREVIOUS_TOKEN;
 
 //// DEFINE A BUNCH OF USEFUL STRINGS, REGEXES AND ARRAYS...
 
-const [space, newline, opener, closer] = [" ", "\n", "[", "]"];
+const [empty, space, newline, quote] = ["", " ", "\n", "\""];
+const [opener, closer, openBrace, closeBrace] = ["[", "]", "{", "}"];
 const [comma, colon, semicolon, hash, slash] = [",", ":", ";", "#", "/"];
 
 const digits = "0123456789";
@@ -67,22 +68,11 @@ class TokenError extends AssemblySyntaxError {
 
     /* This is a custom error class for invalid tokens. */
 
-    constructor(value, line, column) {
+    constructor(value, ...location) {
 
         const message = `Cannot classify \`${value}\`.`;
 
-        super(message, line, column);
-    }
-}
-
-class TerminationError extends AssemblySyntaxError {
-
-    /* This is a custom error class for commas immediately following
-    another other terminal. */
-
-    constructor(...location) {
-
-        super("Empty instructions are not allowed.", ...location);
+        super(message, ...location);
     }
 }
 
@@ -113,7 +103,7 @@ const lexeme = function(value) {
     return not(terminators.includes(value));
 };
 
-const initialize = function(type, value, line, column, terminal=undefined) {
+const initialize = function(type, value, line, column) {
 
     /* This helper takes the arguments required to populate a token
     hash, which is returned, with the value swapped for a semicolon
@@ -121,9 +111,7 @@ const initialize = function(type, value, line, column, terminal=undefined) {
 
     if (value === newline) value = semicolon;
 
-    if (terminal === undefined) terminal = column + 1;
-
-    return {type, value, location: {line, column, terminal}};
+    return {type, value, location: {line, column}};
 };
 
 const classify = function(value, line, column, end) {
@@ -239,7 +227,7 @@ export const tokenize = function * (source) {
 
             while (not(at(irregulars)) && advance()) value += character;
 
-            token = classify(value, line, column, index - edge + 1);
+            token = classify(value, line, column);
         }
 
         if (token) yield token; // note: `classify` may return `undefined`
