@@ -165,7 +165,7 @@ export const registerSimpleOperation = function(name, opcode) {
 
 //// DEFINE AND EXPORT THE DSL FOR DEFINING THE INSTRUCTION GRAMMARS...
 
-export const get = function(instruction, ...indices) {
+export const get = function(instruction, ...args) {
 
     /* This helper takes an instruction and one or two indices. It uses
     the first index to refer to a child of the instruction. When present,
@@ -176,10 +176,10 @@ export const get = function(instruction, ...indices) {
     helpers form a mini DSL that can be used to easily define callbacks
     suitable for passing to `register`. */
 
-    const [x, y] = indices;
+    const [x, y] = args;
     const children = instruction.children;
 
-    return indices.length === 1 ? children[x] : children[x][y];
+    return args.length === 1 ? children[x] : children[x][y];
 };
 
 export const reg = function(code, register) {

@@ -4,19 +4,16 @@ let PREVIOUS_TOKEN;
 
 //// DEFINE A BUNCH OF USEFUL STRINGS, REGEXES AND ARRAYS...
 
-const [comma, colon, semicolon, hash, slash] = [",", ":", ";", "#", "/"];
 const [space, newline, opener, closer] = [" ", "\n", "[", "]"];
+const [comma, colon, semicolon, hash, slash] = [",", ":", ";", "#", "/"];
 
 const digits = "0123456789";
-const unused = "(){}!@$%^&*=;'`<>?|/\\\"";
-
 const whitespace = space + newline;
 const terminators = comma + newline;
 const specials = comma + opener + closer;
 const irregulars = specials + whitespace;
 
-const indexRegisters = ["x", "y", "z"];
-const statusRegisters = ["pc", "sp", "fx"];
+const [indices, statuses] = [["x", "y", "z"], ["pc", "sp", "fx"]];
 
 const mnemonics = [
     "nop", "return", "reset", "halt", "done",
@@ -147,9 +144,9 @@ const classify = function(value, line, column, end) {
 
     if (mnemonics.includes(value)) return init("Mnemonic");
 
-    if (indexRegisters.includes(value)) return init("Index");
+    if (indices.includes(value)) return init("Index");
 
-    if (statusRegisters.includes(value)) return init("Status");
+    if (statuses.includes(value)) return init("Status");
 
     if (reference.test(value)) return init("Reference");
 
@@ -191,7 +188,6 @@ export const tokenize = function * (source) {
         `true` for legal characters, and `false` otherwise. */
 
         if (character === newline) return true;
-        else if (unused.includes(character)) return false;
 
         let ordinal = character.charCodeAt(0);
 

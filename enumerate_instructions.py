@@ -344,9 +344,4 @@ for instruction in instructions.split("\n"):
     print(number, instruction)
     opcode += 1
 
-print("    Opcodes:", str(opcode) + "/256")
-print()
-print("    TODO: define ASCII character set ")
-print("    TODO: check variables exist during references  ")
-print("    TODO: unused characters are used in comments and strings ")
-print()
+print("    Opcodes:", str(opcode) + "/256\n")
