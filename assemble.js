@@ -26,6 +26,20 @@ class SemanticError extends AssemblySyntaxError {
     }
 }
 
+class ReferenceError extends AssemblySyntaxError {
+
+    /* This custom error class is thrown when a reference uses a label
+    that has not been assigned to. */
+
+    constructor(label) {
+
+        const { line, column } = label.location;
+        const message = `Label (\`${label.value}\`) has not been assigned.`;
+
+        super(message, line, column);
+    }
+}
+
 //// DEFINE THE LOCAL HELPER FUNCTIONS...
 
 const not = arg => ! arg;
@@ -184,10 +198,15 @@ export const num = function(literal) {
     Note that negative numbers are replaced with the equivalent
     positive number (-1 becomes +255 etc). Also see `get`. */
 
-    let result;
+    if (literal.type === "Reference") {
 
-    if (literal.type === "Reference") result = LABELS[literal.value];
-    else result = parseInt(literal.value.replace("#", "0x"));
+        const result = LABELS[literal.value];
+
+        if (result === undefined) throw new ReferenceError(literal);
+        else return result;
+    }
+
+    const result = parseInt(literal.value.replace("#", "0x"));
 
     return result >= 0 ? result : 256 + result;
 };

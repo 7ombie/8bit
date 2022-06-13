@@ -1,3 +1,29 @@
+String literals begin and end with a double-quote character, and cannot directly contain a double-quote character. For example:
+
+    "Hello, World!"
+
+It is also illegal for a string literal to directly contain any control character (newline, tab, carriage return *et cetera*).
+
+Puzzles generally use a subset of ASCII that can be directly represented by a string literal. However, when required, the otherwise unavailable characters can be expressed using an *escape sequence*.
+
+An *escape sequence* is a sequence of one or more space-separated *escape expressions*, wrapped in a pair of curly braces.
+
+Each expression within a (valid) sequence expresses exactly one character.
+
+The entire sequence (including the braces surrounding it) is replaced in the expressed string by the sequence of characters that is expressed by the escape sequence.
+
+There are three types of escape expression: *ordinal expressions*, *reference expressions* and *named expressions*. An escape sequence can contain any combination of escape expressions (of any type).
+
+Ordinal expressions use the same hexadecimal notation that is used by number literals (for example, `#00` or `#B1`). They express an arbitrary 8-bit character ordinal (digital and decimal notations are not supported).
+
+Reference expressions have the same syntax and semantics as in the language generally. They are expressed with a label (`foo`, `bar` *et cetera*), and evaluate to whatever the label is currently assigned to.
+
+A named expression is written as a sequence of one or more uppercase letters, which spell out the name of a character (like `NEWLINE`, `TAB` or `OPENBRACE`), or for the most commonly used control characters, a single-character alias (like `N`, `T` or `R`), or for the commonly escaped printables, a two-character alias (like `OB`, `CB` or `DQ`).
+
+These *escape names* are defined by the language, and are documented in *Appendix C: Escape Names to Ordinals Mapping*.
+
+Note: As curly braces are used to wrap escape sequences, they cannot appear in a string otherwise (and have their own names and aliases).
+
 DEVELOPER NOTES
 ===============
 
@@ -6,50 +32,75 @@ This file contains various implementation details.
 THE PARSER
 ----------
 
-When discussing the parser, the following terms are often used:
+When discussing the parser, the following terms are used:
 
 + Token: Any atomic sequence of characters, whether explicit or implied.
 + Terminator: Any Terminator token, whether explicit or implied.
 + Lexeme: Any token that is not a Terminator or EOF token.
-+ Operator: Any lexeme that is an instruction mnemonic.
-+ Qualifier: Any lexeme that is not an operator.
++ Mnemonic: The name of any group of instructions or operations.
++ Qualifier: Any lexeme that is not an mnemonic.
 
-The names used for the instruction classes follow a naming convention that
-allows the classes to be referenced programatically. Each class name begins
-with the mnemonic in fullcaps. The mnemonic is followed by zero or more
-underscore-separated groups of uppercase letters. These groups refer
-to the various kinds of expression:
+FF 00 CORES
+FF 01 BANKS
+FF 02 LOCATION <Number>
+FF 03 LOCATION [<Number>]
+FF 04 LOCATION <Number> [<Number>]
 
-    Code    Syntax          # * Parameters (Operands/Addresses/Destinations)
-    ------------------------------------------------------------------------
-            op              1 * The Accumulator, Stack or Pipe (implicit)
-    S       op []           1 * The Stack
-    X       op x            1 * The X Register
-    Y       op y            1 * The Y Register
-    Z       op z            1 * The Z Register
-    I       op 0            1 * The given immediate
-    A       op [0]          1 * The given address
-    XA      op [x]          1 * The address in the X Register
-    YA      op [y]          1 * The address in the Y Register
-    ZA      op [z]          1 * The address in the Z Register
-    AX      op [0 x]        1 * The given address X-Indexed
-    AY      op [0 y]        1 * The given address Y-Indexed
-    AZ      op [0 z]        1 * The given address Z-Indexed
-    X_I     op x 0          2 * [The X Register, the given immediate]
-    Y_I     op y 0          2 * [The Y Register, the given immediate]
-    Z_I     op z 0          2 * [The Z Register, the given immediate]
-    X_A     op x [0]        2 * [The X Register, the given address]
-    Y_A     op y [0]        2 * [The Y Register, the given address]
-    Z_A     op z [0]        2 * [The Z Register, the given address]
+``` txt
 
-Note: Instructions that have no parameter, have no groups of initials. Any
-instruction with a single parameter has single group of initials, while the
-instructions that use two parameters, have two groups of initials.
 
-For example, the class for the `inc` instruction is named `INC`, the class
-for `load [#100 y]` is named `LOAD_AY`, and the class for `store z [+128]`
-is named `STORE_Z_A`.
 
-The static `Instruction.reference` helper method is used throughout the
-parser module to reference `Instruction` subclasses by name, using the
-conventions documented above.
+CORES 3, BANKS 2
+
+score: #F0, lives: #F1
+
+load pc #80, load sp #A0
+
+LOCATION 3 [0], message: DATA "Hello, World!"
+
+DATA 0 #30 3 +128
+
+load x []
+
+```
+
+
+
+
+
+
+
+
+
+<program> : <instruction> <terminator> *
+
+<instruction> : <assignment ?> <number>
+              | <assignment ?> <data>
+              | <assignment ?> <inst>
+
+<data> : data <datum +>
+
+<datum> : <number>
+        | <string>
+
+<inst> : <mnemonic> <qualifier *>
+
+<qualifier> : <number>
+            | <address>
+            | <register>
+            | <stack>
+
+<address> : [ <register> ]
+          | [ <number> ]
+          | [ <number> <register> ]
+
+<number>  : <digital>
+          | <decimal>
+          | <hexadecimal>
+          | <reference>
+
+<register> : x  | y  | z
+           | pc | sp | fx
+           | cb | sb | db
+
+<stack> : $
