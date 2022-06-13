@@ -30,10 +30,11 @@ const mnemonics = [
     "copydata", "copycode", "copystack", "copyio",
 ];
 
+const digital = /^[0-9]$/;
+const decimal = /^[+-][0-9]{1,3}$/;
+const hexadecimal = /^#[0-9A-F]{2}$/;
 const reference = /^[a-zA-Z][a-zA-Z0-9]*$/;
 const assignment = /^[a-zA-Z][a-zA-Z0-9]*:$/;
-
-const [dig, dec, hex] = [/^[0-9]$/, /^[+-][0-9]{1,3}$/, /^#[0-9A-F]{2}$/];
 
 //// DEFINE CUSTOM SYNTAX ERROR CLASSES...
 
@@ -80,13 +81,13 @@ class TokenError extends AssemblySyntaxError {
 
 const not = arg => ! arg;
 
-const decimal = function(value) {
+const isDecimal = function(value) {
 
     /* This function takes a token value string and returns a bool to
     indicate whether the value is a decimal number in the 8-bit range,
     (allowing for two's-compliment expressions) or not. */
 
-    if (not(dec.test(value)) || value === "-0") return false;
+    if (not(decimal.test(value)) || value === "-0") return false;
 
     const number = parseInt(value);
 
@@ -114,7 +115,7 @@ const initialize = function(type, value, line, column) {
     return {type, value, location: {line, column}};
 };
 
-const classify = function(value, line, column, end) {
+const classify = function(value, line, column) {
 
     /* This function takes a token string, a line number and a column
     number. It attempts to classify the token to construct and return
@@ -122,7 +123,7 @@ const classify = function(value, line, column, end) {
     egal token is discovered , and returns `undefined` whenever a
     valid, but redundant, newline is found. */
 
-    const init = type => initialize(type, value, line, column, end);
+    const init = type => initialize(type, value, line, column);
 
     const previous = PREVIOUS_TOKEN; PREVIOUS_TOKEN = value;
 
@@ -140,11 +141,11 @@ const classify = function(value, line, column, end) {
 
     if (assignment.test(value)) return init("Assignment");
 
-    if (dig.test(value)) return init("Digit");
+    if (digital.test(value)) return init("Digit");
 
-    if (hex.test(value)) return init("Hexadecimal");
+    if (hexadecimal.test(value)) return init("Hexadecimal");
 
-    if (decimal(value)) return init("Decimal");
+    if (isDecimal(value)) return init("Decimal");
 
     if (terminators.includes(value)) {
 
