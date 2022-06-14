@@ -3,7 +3,6 @@ import { parse } from "./parse.js";
 
 //// INITIALIZE MODULE-lEVEL GLOBAL VARIABLES...
 
-const LABELS = Object.create(null);
 const HANDLERS = Object.create(null);
 
 //// DEFINE SOME USEFUL STRING ARRAYS...
@@ -75,7 +74,7 @@ const serialize = function(instruction) {
 
         let output = [];
 
-        for (let child of children) if (child instanceof Array) {
+        for (const child of children) if (child instanceof Array) {
 
             output.push(child.length ? `[${walk(child)}]` : "[]");
 
@@ -218,42 +217,34 @@ export const num = function(literal) {
 
     const {type, value} = literal;
 
-    if (type === "Reference") {
+    if (type === "Reference") return literal;
 
-        const result = LABELS[value];
-
-        if (result === undefined) throw new ReferenceError(literal);
-        else return result;
-
-    } else if (type === "Character") {
+    if (type === "Character") {
 
         if (value.length === 1) return value.charCodeAt();
         else return controlCharacters[value];
-
-    } else { // type is a subtype of `Number`...
-
-        const result = parseInt(literal.value.replace("#", "0x"));
-
-        return result >= 0 ? result : 256 + result;
     }
+
+    const result = parseInt(value.replace("#", "0x"));
+
+    return result >= 0 ? result : 256 + result;
 };
 
-//// DEFINE AND EXPORT THE ENTRYPOINT CODEGEN FUNCTION...
+const preassemble = function (instructions) {
 
-export const assemble = function * (source) {
-
-    /* This entrypoint generator takes a source string, and compiles it to
-    a binary (parsing instructions, and in turn, tokens, only as required).
-    The generator yields each byte of the executable one by one (with each
-    byte represented by an integer in the range 0x00 to 0xFF).
-
-    The use of generators for each stage of the pipeline permits programs
-    to be stepped through, executing one instruction at a time, even when
-    there is a completely unparsable syntax error later in the source. */
+    /* This function takes a proto-instruction generator (from the `parse`
+    function), validates the instructions, along with any assignments, and
+    then returns a hash containing the binary bytes and a complete list of
+    labels. The references within the binary are left unresolved (as token
+    objects). Note: Resolving the labels requires exhausting the instruct-
+    ion generator. */
 
     let address = 0;
 
-    for (const instruction of parse(source)) {
+    const binary = new Array();
+    const labels = Object.create(null);
+
+    for (const instruction of instructions) {
 
         const pattern = serialize(instruction);
         const handler = HANDLERS[pattern];
@@ -262,17 +253,39 @@ export const assemble = function * (source) {
 
         if (instruction.constant) {
 
-            if (instruction.constant.value in LABELS) {
+            if (instruction.constant.value in labels) {
 
                 throw new AssignmentError(instruction.constant);
 
-            } else LABELS[instruction.constant.value] = address;
+            } else labels[instruction.constant.value] = address;
         }
 
-        const result = handler(instruction);
+        for (let byte of handler(instruction)) {
 
-        address += result.length;
+            binary.push(byte);
+            address++;
+        }
+    }
 
-        yield * result;
+    return {binary, labels};
+};
+
+//// DEFINE AND EXPORT THE ENTRYPOINT CODEGEN FUNCTION...
+
+export const assemble = function * (source) {
+
+    /* This function is the primary entrypoint for the API. It takes a
+    source string and yields the compiled binary, one byte at a time.*/
+
+    const {binary, labels} = preassemble(parse(source));
+
+    for (const byte of binary) {
+
+        if (byte instanceof Object) {
+
+            if (byte.value in labels) yield labels[byte.value];
+            else throw new ReferenceError(byte);
+
+        } else yield byte;
     }
 };

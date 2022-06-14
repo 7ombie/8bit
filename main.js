@@ -10,7 +10,7 @@ import { assemble, parse, tokenize } from "./zen80.js";
 
 let source = `
 loop: add -3, add x, add loop
-add []
+opp: add []
 sub +128, sub z, sub y
 sub [], sub loop
 spam: fork, fork spam, fork [], fork [+150]
@@ -33,7 +33,9 @@ not [], truthy [], falsey
 ctz, nsa, clz, lock [], free 1, lock, free [#90]
 push, push x, pop y, pop fx, push pc, pop sp
 drop, peek, dupe, databank, copyio
-queue '1', queue [], queue x, load 'LF'
+queue '1', queue [], queue x
+load lopp
 `;
 
 for (let item of assemble(source)) console.log(item);
+// console.log(assemble(source));
