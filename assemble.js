@@ -22,7 +22,7 @@ class SemanticError extends AssemblySyntaxError {
 
         const { line, column } = instruction.location;
 
-        super(`Incomprehensible grammar \`${pattern}\`.`, line, column);
+        super(`incomprehensible grammar, ${pattern}`, line, column);
     }
 }
 
@@ -34,7 +34,7 @@ class ReferenceError extends AssemblySyntaxError {
     constructor(label) {
 
         const { line, column } = label.location;
-        const message = `Label (\`${label.value}\`) has not been assigned.`;
+        const message = `label (${label.value}) has not been assigned.`;
 
         super(message, line, column);
     }

@@ -8,7 +8,7 @@ import { assemble, parse, tokenize } from "./zen80.js";
 
 
 
-const source = `
+let source = `
 loop: add -3, add x, loop: add y
 add []
 sub +128, sub z, sub y
@@ -34,7 +34,15 @@ ctz, nsa, clz, lock [], free 1, lock, free [#90]
 push, push x, pop y, pop fx, push pc, pop sp
 drop, peek, dupe, databank, copyio
 queue 1, queue [], queue x
-flush, drain, array
 `;
+
+
+// source = `
+
+//     add '0'
+//     mul '1'
+//     sub '2'
+//     div "spam\\"\\n\\\\"
+// `;
 
 for (let item of assemble(source)) console.log(item);

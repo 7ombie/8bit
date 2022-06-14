@@ -4,15 +4,17 @@ let PREVIOUS_TOKEN;
 
 //// DEFINE A BUNCH OF USEFUL STRINGS, REGEXES AND ARRAYS...
 
-const [empty, space, newline, quote] = ["", " ", "\n", "\""];
+const [empty, space, newline] = ["", " ", "\n"];
+const [comma, colon, semicolon, hash] = [",", ":", ";", "#"];
 const [opener, closer, openBrace, closeBrace] = ["[", "]", "{", "}"];
-const [comma, colon, semicolon, hash, slash] = [",", ":", ";", "#", "/"];
+const [singlequote, doublequote, slash, backslash] = ["'", '"', "/", "\\"];
 
 const digits = "0123456789";
 const whitespace = space + newline;
 const terminators = comma + newline;
 const specials = comma + opener + closer;
 const irregulars = specials + whitespace;
+const emptyquotes = singlequote + singlequote;
 
 const [indices, statuses] = [["x", "y", "z"], ["pc", "sp", "fx"]];
 
@@ -30,11 +32,18 @@ const mnemonics = [
     "copydata", "copycode", "copystack", "copyio",
 ];
 
-const digital = /^[0-9]$/;
-const decimal = /^[+-][0-9]{1,3}$/;
-const hexadecimal = /^#[0-9A-F]{2}$/;
-const reference = /^[a-zA-Z][a-zA-Z0-9]*$/;
-const assignment = /^[a-zA-Z][a-zA-Z0-9]*:$/;
+//// DEFINE AND EXPORT THE ASCII CONTROL CHARACTER MAP...
+
+export const controlCharacters = {
+    NUL: 0x00, SOH: 0x01, STX: 0x02, ETX: 0x03,
+    EOT: 0x04, ENQ: 0x05, ACK: 0x06, BEL: 0x07,
+     BS: 0x08,  HT: 0x09,  LF: 0x0A,  VT: 0x0B,
+     FF: 0x0C,  CR: 0x0D,  SO: 0x0E,  SI: 0x0F,
+    DLE: 0x10, DC1: 0x11, DC2: 0x12, DC3: 0x13,
+    DC4: 0x14, NAK: 0x15, SYN: 0x16, ETB: 0x17,
+    CAN: 0x18,  EM: 0x19, SUB: 0x1A, ESC: 0x1B,
+     FS: 0x1C,  GS: 0x1D,  RS: 0x1E,  US: 0x1F, DEL: 0x7F
+};
 
 //// DEFINE CUSTOM SYNTAX ERROR CLASSES...
 
@@ -53,7 +62,8 @@ export class AssemblySyntaxError extends Error {
 
 class CharacterError extends AssemblySyntaxError {
 
-    /* This is a custom error class for illegal characters in the source. */
+    /* This is a custom error class for illegal characters in the
+    source code. */
 
     constructor(character, ...location) {
 
@@ -61,7 +71,7 @@ class CharacterError extends AssemblySyntaxError {
         const padding = ordinal < 0x10 ? "0" : "";
         const message = "0x" + padding + ordinal.toString(16).toUpperCase();
 
-        super(`Cannot scan \`${message}\`.`, ...location);
+        super(`cannot scan charcode, ${message}`, ...location);
     }
 }
 
@@ -71,7 +81,33 @@ class TokenError extends AssemblySyntaxError {
 
     constructor(value, ...location) {
 
-        const message = `Cannot classify \`${value}\`.`;
+        const message = `unrecognized token, ${value}`;
+
+        super(message, ...location);
+    }
+}
+
+class StringError extends AssemblySyntaxError {
+
+    /* This is a custom error class for improperly terminated string
+    literals */
+
+    constructor(value, ...location) {
+
+        const message = `invalid string literal, ${value}`;
+
+        super(message, ...location);
+    }
+}
+
+class EscapeCharacterError extends AssemblySyntaxError {
+
+    /* This is a custom error class for invalid escape characters
+    within string literals. */
+
+    constructor(character, ...location) {
+
+        const message = `invalid escape character, ${backslash}${character}`;
 
         super(message, ...location);
     }
@@ -81,27 +117,19 @@ class TokenError extends AssemblySyntaxError {
 
 const not = arg => ! arg;
 
-const isDecimal = function(value) {
+const trim = value => value.slice(1, -1);
 
-    /* This function takes a token value string and returns a bool to
-    indicate whether the value is a decimal number in the 8-bit range,
-    (allowing for two's-compliment expressions) or not. */
+const encode = function(character, ...location) {
 
-    if (not(decimal.test(value)) || value === "-0") return false;
+    /* This helper takes a character string, as well as a line and
+    column number (in case of an error). If the character is a known
+    escape character, the corresponding character is returned, else
+    a `EscapeCharacterError` is thrown. */
 
-    const number = parseInt(value);
+    const map = {n: newline, "\\": backslash, "\"": doublequote};
 
-    return number >= -128 && number <= +255;
-};
-
-const lexeme = function(value) {
-
-    /* This function takes a token value string and returns a bool to
-    indicate whether the value is a lexeme (a non-terminator) or not.
-    Note that the function does not check for EOF tokens, as it will
-    never be called that late in the process. */
-
-    return not(terminators.includes(value));
+    if (character in map) return map[character];
+    else throw new EscapeCharacterError(character, ...location);
 };
 
 const initialize = function(type, value, line, column) {
@@ -123,7 +151,7 @@ const classify = function(value, line, column) {
     egal token is discovered , and returns `undefined` whenever a
     valid, but redundant, newline is found. */
 
-    const init = type => initialize(type, value, line, column);
+    const init = (type, token=value) => initialize(type, token, line, column);
 
     const previous = PREVIOUS_TOKEN; PREVIOUS_TOKEN = value;
 
@@ -137,25 +165,56 @@ const classify = function(value, line, column) {
 
     if (statuses.includes(value)) return init("Status");
 
-    if (reference.test(value)) return init("Reference");
+    if (isDigitalLiteral(value)) return init("Digit");
 
-    if (assignment.test(value)) return init("Assignment");
+    if (isDecimalLiteral(value)) return init("Decimal");
 
-    if (digital.test(value)) return init("Digit");
+    if (isHexadecimalLiteral(value)) return init("Hexadecimal");
 
-    if (hexadecimal.test(value)) return init("Hexadecimal");
+    if (isCharacterLiteral(value)) return init("Character", trim(value));
 
-    if (isDecimal(value)) return init("Decimal");
+    if (isLabelReference(value)) return init("Reference");
+
+    if (isLabelAssignment(value)) return init("Assignment");
 
     if (terminators.includes(value)) {
 
-        if (previous && lexeme(previous)) return init("Terminator");
+        if (previous && isLexeme(previous)) return init("Terminator");
         else if (previous !== comma && value !== comma) return undefined;
         else throw new TerminationError(line, column);
     }
 
     throw new TokenError(value, line, column);
 };
+
+//// DEFINE THE BOOLEAN VALUE FUNCTIONS...
+
+const isDecimalLiteral = function(value) {
+
+    const regex = /^[+-][0-9]{1,3}$/;
+
+    if (not(regex.test(value)) || value === "-0") return false;
+
+    const number = parseInt(value);
+
+    return number >= -128 && number <= +255;
+};
+
+const isCharacterLiteral = function(value) {
+
+    if ((/^'[ -~]{1}'$/).test(value)) return true;
+    else return trim(value) in controlCharacters;
+};
+
+const isDigitalLiteral = value => (/^[0-9]$/).test(value);
+
+const isHexadecimalLiteral = value => (/^#[0-9A-F]{2}$/).test(value);
+
+const isLabelReference = value => (/^[a-zA-Z][a-zA-Z0-9]*$/).test(value);
+
+const isLabelAssignment = value => (/^[a-zA-Z][a-zA-Z0-9]*:$/).test(value);
+
+const isLexeme = value => value && not(terminators.includes(value));
 
 //// DEFINE AND EXPORT THE ENTRYPOINT TOKENIZER FUNCTION...
 
@@ -170,6 +229,43 @@ export const tokenize = function * (source) {
     const at = candidates => candidates.includes(source[index + 1]);
 
     const comment = () => on(slash) && at(slash);
+
+    const gatherCharacterLiteral = function() {
+
+        /* This helper trys to gather a character literal and return it,
+        throwing a `TokenError` if the literal is left unclosed or fails
+        to classify correctly. */
+
+        while (not(at(singlequote + newline)) && advance()) value += character;
+
+        if (at(singlequote)) value += advance();
+        else throw new TokenError(value, line, column);
+
+        if (value !== emptyquotes) return classify(value, line, column);
+
+        if (at(singlequote)) return classify(value + advance(), line, column);
+        else throw new TokenError(value, line, column);
+    };
+
+    const gatherStringLiteral = function() {
+
+        /* This helper trys to gather a character literal and return it,
+        throwing a `StringError` if the literal is left unclosed. */
+
+        let raw = doublequote; // keep the raw string (for error messages)
+
+        const cat = (v, r) => { value += v; raw += r};
+
+        while (not(at(doublequote + newline)) && advance()) {
+
+            if (not(on(backslash))) cat(character, character);
+            else cat(encode(advance(), line, column), backslash + character);
+        }
+
+        if (at([newline, undefined])) throw new StringError(raw, line, column);
+
+        return initialize("String", trim(value + advance()), line, column);
+    };
 
     const legal = function(character) {
 
@@ -212,31 +308,39 @@ export const tokenize = function * (source) {
 
         if (comment()) do { advance() } while (character !== newline)
 
-        [value, column, token] = [character, index - edge, undefined];
+        [value, column] = [character, index - edge];
 
         if (on(newline)) { // line numbers and implicit terminators...
 
-            token = classify(value, line, column);
+            const token = classify(value, line, column);
 
             [line, edge] = [line + 1, index];
 
+            if (token) yield token;
+
         } else if (on(specials)) { // brackets and explicit terminators...
 
-            token = classify(value, line, column);
+            yield classify(value, line, column);
+
+        } else if (on(singlequote)) { // character literals...
+
+            yield gatherCharacterLiteral();
+
+        } else if (on(doublequote)) { // string literals...
+
+            yield gatherStringLiteral();
 
         } else { // gather up regular characters into a token...
 
             while (not(at(irregulars)) && advance()) value += character;
 
-            token = classify(value, line, column);
+            yield classify(value, line, column);
         }
-
-        if (token) yield token; // note: `classify` may return `undefined`
     }
 
     // yield a terminator, if required, followed by an end-of-file token...
 
     if (token = classify(newline, line, index - edge)) yield token;
 
-    yield initialize("EOF", "EOF", line, index - edge);
+    yield initialize("EOF", ";", line, index - edge);
 };

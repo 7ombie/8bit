@@ -26,11 +26,6 @@ Note: As curly braces are used to wrap escape sequences, they cannot appear in a
 
 //// MAP THE ESCAPE NAMES TO THE CORRESPONDING ORDINALS...
 
-const names = {
-    T: "#09", TAB: "#09",
-    N: "#0A", NEWLINE: "#0A",
-    DQ: "#22", OB: "#7B", CB: "#7D"
-};
 
 DEVELOPER NOTES
 ===============
@@ -71,13 +66,6 @@ DATA 0 #30 3 +128
 load x []
 
 ```
-
-
-
-
-
-
-
 
 
 <program> : <instruction> <terminator> *

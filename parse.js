@@ -14,7 +14,7 @@ class GrammaticalError extends AssemblySyntaxError {
     constructor(expected) {
 
         const { line, column } = TOKEN.location;
-        const message = `Expected an initial Mnemonic (found ${TOKEN.type}).`;
+        const message = `expected an initial Mnemonic (not ${TOKEN.type}).`;
 
         super(message, line, column);
     }
@@ -32,8 +32,8 @@ class NestingError extends AssemblySyntaxError {
 
         const { line, column } = TOKEN.location;
 
-        if (open) super("Instruction terminated while nested.", line, column);
-        else super("Closer found without a preceding Opener.", line, column);
+        if (open) super("instruction terminated while nested.", line, column);
+        else super("closer found without a preceding Opener.", line, column);
     }
 }
 
