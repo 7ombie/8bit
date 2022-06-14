@@ -1,15 +1,19 @@
-import { AssemblySyntaxError } from "./tokenize.js";
+import { controlCharacters, AssemblySyntaxError } from "./tokenize.js";
 import { parse } from "./parse.js";
-
-//// DEFINE SOME USEFUL STRING ARRAYS...
-
-const registers = ["<Index>", "<Status>"];
-const numbers = ["<Digit>", "<Decimal>", "<Hexadecimal>", "<Reference>"];
 
 //// INITIALIZE MODULE-lEVEL GLOBAL VARIABLES...
 
 const LABELS = Object.create(null);
 const HANDLERS = Object.create(null);
+
+//// DEFINE SOME USEFUL STRING ARRAYS...
+
+const registers = ["<Index>", "<Status>"];
+
+const numbers = [
+    "<Digit>", "<Decimal>", "<Hexadecimal>",
+    "<Character>", "<Reference>"
+];
 
 //// DEFINE THE CUSTOM ERROR CLASS FOR THE CODEGEN MODULE...
 
@@ -198,17 +202,26 @@ export const num = function(literal) {
     Note that negative numbers are replaced with the equivalent
     positive number (-1 becomes +255 etc). Also see `get`. */
 
-    if (literal.type === "Reference") {
+    const {type, value} = literal;
 
-        const result = LABELS[literal.value];
+    if (type === "Reference") {
+
+        const result = LABELS[value];
 
         if (result === undefined) throw new ReferenceError(literal);
         else return result;
+
+    } else if (type === "Character") {
+
+        if (value.length === 1) return value.charCodeAt();
+        else return controlCharacters[value];
+
+    } else { // type is a subtype of `Number`...
+
+        const result = parseInt(literal.value.replace("#", "0x"));
+
+        return result >= 0 ? result : 256 + result;
     }
-
-    const result = parseInt(literal.value.replace("#", "0x"));
-
-    return result >= 0 ? result : 256 + result;
 };
 
 //// DEFINE AND EXPORT THE ENTRYPOINT CODEGEN FUNCTION...

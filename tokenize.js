@@ -228,59 +228,87 @@ export const tokenize = function * (source) {
 
     const at = candidates => candidates.includes(source[index + 1]);
 
-    const comment = () => on(slash) && at(slash);
+    const validateCloseQuote = function(value) {
+
+        /* This helper takes a character or string literal string that
+        has just been parsed (including the closing quote). The helper
+        checks that the quote is followed by a special character, and
+        returns `undefined` if so, raising a `TokenError` otherwise. */
+
+        let raw = value;
+
+        while (not(at(irregulars)) && advance()) raw += character;
+
+        if (raw !== value) throw new TokenError(raw, line, column);
+    };
 
     const gatherCharacterLiteral = function() {
 
         /* This helper trys to gather a character literal and return it,
         throwing a `TokenError` if the literal is left unclosed or fails
-        to classify correctly. */
+        to classify correctly. The function correctly handles singlequote
+        character literals, which are spelled with three singlequotes. */
 
         while (not(at(singlequote + newline)) && advance()) value += character;
+
+        // handle cases where the string is terminated by an EOL or EOF...
 
         if (at(singlequote)) value += advance();
         else throw new TokenError(value, line, column);
 
-        if (value !== emptyquotes) return classify(value, line, column);
+        // handle the regular cases, where the quotes contain something...
 
-        if (at(singlequote)) return classify(value + advance(), line, column);
-        else throw new TokenError(value, line, column);
+        if (value !== emptyquotes) {
+
+            validateCloseQuote(value);
+
+            return classify(value, line, column);
+        }
+
+        // handle the special cases (empty quotes and triple-singlequotes)...
+
+        if (not(at(singlequote))) throw new TokenError(value, line, column);
+
+        validateCloseQuote(value += advance());
+
+        return classify(value, line, column);
     };
 
     const gatherStringLiteral = function() {
 
         /* This helper trys to gather a string literal and return it. It
         throws a `StringError` if the literal is left unclosed, and throws
-        a `TokenError` if the string is empty. Note that the raw string is
-        also gathered, as it better describes any `StringError`. */
+        a `TokenError` if the string is empty, or is immediately followed
+        by a *regular* token, once it is closed. Note that the raw string
+        is also gathered (without escaping anything), as the `StringError`
+        and `TokenError` each take the exact text from the source. */
 
         let raw = doublequote;
 
-        const cat = (v, r) => { value += v; raw += r};
+        const cat = (v, r=undefined) => { value += v; raw += r || v };
+
+        // gather the escaped and unescaped character sequence...
 
         while (not(at(doublequote + newline)) && advance()) {
 
-            if (not(on(backslash))) cat(character, character);
+            if (not(on(backslash))) cat(character);
             else cat(encode(advance(), line, column), backslash + character);
         }
 
+        // check if the line ended without the required closing quote...
+
         if (at([newline, undefined])) throw new StringError(raw, line, column);
+
+        // check if the string was empty (which is illegal)...
 
         if (value === doublequote) throw new TokenError('""', line, column);
 
-        return initialize("String", trim(value + advance()), line, column);
-    };
+        // close and validate the gathered literal, then return it...
 
-    const legal = function(character) {
+        cat(advance());
+        validateCloseQuote(value);
 
-        /* This helper takes a character, and returns a bool that is
-        `true` for legal characters, and `false` otherwise. */
-
-        if (character === newline) return true;
-
-        let ordinal = character.charCodeAt(0);
-
-        return not(ordinal < 0x20 || ordinal > 0x7F);
+        return initialize("String", trim(value), line, column);
     };
 
     const advance = function() {
@@ -290,6 +318,18 @@ export const tokenize = function * (source) {
         ing the character too, all assuming it exists and is legal. The
         function returns `undefined` if the source has been exhausted,
         and will throw an `IllegalCharacter` error when appropriate. */
+
+        const legal = function(character) {
+
+            /* This helper returns a bool indicating whether the given
+            character is legal or not. */
+
+            if (character === newline) return true;
+
+            let ordinal = character.charCodeAt(0);
+
+            return not(ordinal < 0x20 || ordinal > 0x7F);
+        };
 
         if ((character = source[++index]) === undefined) return;
 
@@ -308,9 +348,9 @@ export const tokenize = function * (source) {
 
     while (advance()) {
 
-        if (on(space)) continue;
+        if (on(space)) continue; // redundant whitespace and comments...
 
-        if (comment()) do { advance() } while (character !== newline)
+        if (on(slash) && at(slash)) do { advance() } while (not(on(newline)))
 
         [value, column] = [character, index - edge];
 

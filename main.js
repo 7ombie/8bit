@@ -33,7 +33,7 @@ not [], truthy [], falsey
 ctz, nsa, clz, lock [], free 1, lock, free [#90]
 push, push x, pop y, pop fx, push pc, pop sp
 drop, peek, dupe, databank, copyio
-queue 1, queue [], queue x
+queue '1', queue [], queue x, load 'LF'
 `;
 
-for (let item of tokenize(source)) console.log(item);
+for (let item of assemble(source)) console.log(item);
