@@ -36,13 +36,4 @@ drop, peek, dupe, databank, copyio
 queue 1, queue [], queue x
 `;
 
-
-// source = `
-
-//     add '0'
-//     mul '1'
-//     sub '2'
-//     div "spam\\"\\n\\\\"
-// `;
-
-for (let item of assemble(source)) console.log(item);
+for (let item of tokenize(source)) console.log(item);

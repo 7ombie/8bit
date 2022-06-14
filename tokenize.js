@@ -187,7 +187,7 @@ const classify = function(value, line, column) {
     throw new TokenError(value, line, column);
 };
 
-//// DEFINE THE BOOLEAN VALUE FUNCTIONS...
+//// DEFINE THE BOOLEAN VALUE TEST FUNCTIONS...
 
 const isDecimalLiteral = function(value) {
 
@@ -249,10 +249,12 @@ export const tokenize = function * (source) {
 
     const gatherStringLiteral = function() {
 
-        /* This helper trys to gather a character literal and return it,
-        throwing a `StringError` if the literal is left unclosed. */
+        /* This helper trys to gather a string literal and return it. It
+        throws a `StringError` if the literal is left unclosed, and throws
+        a `TokenError` if the string is empty. Note that the raw string is
+        also gathered, as it better describes any `StringError`. */
 
-        let raw = doublequote; // keep the raw string (for error messages)
+        let raw = doublequote;
 
         const cat = (v, r) => { value += v; raw += r};
 
@@ -263,6 +265,8 @@ export const tokenize = function * (source) {
         }
 
         if (at([newline, undefined])) throw new StringError(raw, line, column);
+
+        if (value === doublequote) throw new TokenError('""', line, column);
 
         return initialize("String", trim(value + advance()), line, column);
     };
