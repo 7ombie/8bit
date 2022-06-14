@@ -47,8 +47,7 @@ const initialize = function(label) {
 
     const instruction = Object.create(null);
 
-    instruction.label = label?.value.slice(0, -1);
-
+    instruction.constant = label;
     instruction.mnemonic = TOKEN.value;
     instruction.location = TOKEN.location;
     instruction.children = gatherChildren();

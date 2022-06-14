@@ -30,6 +30,20 @@ class SemanticError extends AssemblySyntaxError {
     }
 }
 
+class AssignmentError extends AssemblySyntaxError {
+
+    /* This custom error class is thrown when a reference uses a label
+    that has already been assigned to. */
+
+    constructor(label) {
+
+        const { line, column } = label.location;
+        const message = `label \`${label.value}\` is already assigned.`;
+
+        super(message, line, column);
+    }
+}
+
 class ReferenceError extends AssemblySyntaxError {
 
     /* This custom error class is thrown when a reference uses a label
@@ -38,7 +52,7 @@ class ReferenceError extends AssemblySyntaxError {
     constructor(label) {
 
         const { line, column } = label.location;
-        const message = `label (${label.value}) has not been assigned.`;
+        const message = `label \`${label.value}\` has not been assigned.`;
 
         super(message, line, column);
     }
@@ -246,7 +260,14 @@ export const assemble = function * (source) {
 
         if (not(handler)) throw new SemanticError(instruction, pattern);
 
-        if (instruction.label) LABELS[instruction.label] = address;
+        if (instruction.constant) {
+
+            if (instruction.constant.value in LABELS) {
+
+                throw new AssignmentError(instruction.constant);
+
+            } else LABELS[instruction.constant.value] = address;
+        }
 
         const result = handler(instruction);
 

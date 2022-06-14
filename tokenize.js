@@ -119,6 +119,8 @@ const not = arg => ! arg;
 
 const trim = value => value.slice(1, -1);
 
+const trimtail = value => value.slice(0, -1);
+
 const encode = function(character, ...location) {
 
     /* This helper takes a character string, as well as a line and
@@ -175,7 +177,7 @@ const classify = function(value, line, column) {
 
     if (isLabelReference(value)) return init("Reference");
 
-    if (isLabelAssignment(value)) return init("Assignment");
+    if (isLabelAssignment(value)) return init("Assignment", trimtail(value));
 
     if (terminators.includes(value)) {
 

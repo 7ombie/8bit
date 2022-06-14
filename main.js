@@ -9,10 +9,10 @@ import { assemble, parse, tokenize } from "./zen80.js";
 
 
 let source = `
-loop: add -3, add x, loop: add y
+loop: add -3, add x, add loop
 add []
 sub +128, sub z, sub y
-loop: sub [], sub loop
+sub [], sub loop
 spam: fork, fork spam, fork [], fork [+150]
 done, halt, reset, return
 race, race loop, race [spam], nop, race [+10]
