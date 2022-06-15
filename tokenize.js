@@ -87,32 +87,6 @@ class TokenError extends AssemblySyntaxError {
     }
 }
 
-class StringError extends AssemblySyntaxError {
-
-    /* This is a custom error class for improperly terminated string
-    literals */
-
-    constructor(value, ...location) {
-
-        const message = `invalid string literal, ${value}`;
-
-        super(message, ...location);
-    }
-}
-
-class EscapeCharacterError extends AssemblySyntaxError {
-
-    /* This is a custom error class for invalid escape characters
-    within string literals. */
-
-    constructor(character, ...location) {
-
-        const message = `invalid escape character, ${backslash}${character}`;
-
-        super(message, ...location);
-    }
-}
-
 //// DEFINE ANY LOCAL HELPER FUNCTIONS...
 
 const not = arg => ! arg;
@@ -120,19 +94,6 @@ const not = arg => ! arg;
 const trim = value => value.slice(1, -1);
 
 const trimtail = value => value.slice(0, -1);
-
-const encode = function(character, ...location) {
-
-    /* This helper takes a character string, as well as a line and
-    column number (in case of an error). If the character is a known
-    escape character, the corresponding character is returned, else
-    a `EscapeCharacterError` is thrown. */
-
-    const map = {n: newline, "\\": backslash, "\"": doublequote};
-
-    if (character in map) return map[character];
-    else throw new EscapeCharacterError(character, ...location);
-};
 
 const initialize = function(type, value, line, column) {
 
@@ -232,10 +193,10 @@ export const tokenize = function * (source) {
 
     const validateCloseQuote = function(value) {
 
-        /* This helper takes a character or string literal string that
-        has just been parsed (including the closing quote). The helper
-        checks that the quote is followed by a special character, and
-        returns `undefined` if so, raising a `TokenError` otherwise. */
+        /* This helper takes a Character or String literal that has
+        just been parsed (including the closing quote). The function
+        raises a `TokenError` if the literal is immediately followed
+        by a regular token. Otherwise, it returns `undefined`. */
 
         let raw = value;
 
@@ -253,25 +214,16 @@ export const tokenize = function * (source) {
 
         while (not(at(singlequote + newline)) && advance()) value += character;
 
-        // handle cases where the string is terminated by an EOL or EOF...
-
         if (at(singlequote)) value += advance();
         else throw new TokenError(value, line, column);
 
-        // handle the regular cases, where the quotes contain something...
+        if (value === emptyquotes) {
 
-        if (value !== emptyquotes) {
-
-            validateCloseQuote(value);
-
-            return classify(value, line, column);
+            if (at(singlequote)) value += advance();
+            else throw new TokenError(value, line, column);
         }
 
-        // handle the special cases (empty quotes and triple-singlequotes)...
-
-        if (not(at(singlequote))) throw new TokenError(value, line, column);
-
-        validateCloseQuote(value += advance());
+        validateCloseQuote(value);
 
         return classify(value, line, column);
     };
@@ -279,36 +231,16 @@ export const tokenize = function * (source) {
     const gatherStringLiteral = function() {
 
         /* This helper trys to gather a string literal and return it. It
-        throws a `StringError` if the literal is left unclosed, and throws
-        a `TokenError` if the string is empty, or is immediately followed
-        by a *regular* token, once it is closed. Note that the raw string
-        is also gathered (without escaping anything), as the `StringError`
-        and `TokenError` each take the exact text from the source. */
+        throws a `TokenError` if the literal is empty, left unclosed, or
+        the closing quote is immediately followed by a *regular* token. */
 
-        let raw = doublequote;
+        while (not(at(doublequote + newline)) && advance()) value += character;
 
-        const cat = (v, r=undefined) => { value += v; raw += r || v };
-
-        // gather the escaped and unescaped character sequence...
-
-        while (not(at(doublequote + newline)) && advance()) {
-
-            if (not(on(backslash))) cat(character);
-            else cat(encode(advance(), line, column), backslash + character);
-        }
-
-        // check if the line ended without the required closing quote...
-
-        if (at([newline, undefined])) throw new StringError(raw, line, column);
-
-        // check if the string was empty (which is illegal)...
+        if (not(at(doublequote))) throw new TokenError(value, line, column);
 
         if (value === doublequote) throw new TokenError('""', line, column);
 
-        // close and validate the gathered literal, then return it...
-
-        cat(advance());
-        validateCloseQuote(value);
+        validateCloseQuote(value += advance());
 
         return initialize("String", trim(value), line, column);
     };
