@@ -16,7 +16,9 @@ const specials = comma + opener + closer;
 const irregulars = specials + whitespace;
 const emptyquotes = singlequote + singlequote;
 
-const [indices, statuses] = [["x", "y", "z"], ["pc", "sp", "fx"]];
+const indices = ["x", "y", "z"];
+const statuses = ["pc", "sp", "fx"];
+const pointers = ["cb", "sb", "db"];
 
 const mnemonics = [
     "nop", "return", "reset", "halt", "done",
@@ -30,6 +32,16 @@ const mnemonics = [
     "queue", "flush", "drain", "array", "length",
     "databank", "codebank", "stackbank", "iobank",
     "copydata", "copycode", "copystack", "copyio",
+    "LOCATE", "DATA"
+];
+
+const words = mnemonics.concat(indices).concat(statuses).concat(pointers);
+
+export const vectorTypes = ["Loop", "Skip"];
+export const registerTypes = ["Index", "Status", "Pointer"];
+export const numericTypes = [
+    "Digit", "Decimal", "Hexadecimal",
+    "Loop", "Skip", "Character", "Reference"
 ];
 
 //// DEFINE AND EXPORT THE ASCII CONTROL CHARACTER MAP...
@@ -87,9 +99,21 @@ class TokenError extends AssemblySyntaxError {
     }
 }
 
+class LabelError extends AssemblySyntaxError {
+
+    /* This is a custom error class for assignments to language words. */
+
+    constructor(word, ...location) {
+
+        const message = `a language word (${word}) cannot be used as a label.`;
+
+        super(message, ...location);
+    }
+}
+
 //// DEFINE ANY LOCAL HELPER FUNCTIONS...
 
-const not = arg => ! arg;
+export const not = arg => ! arg;
 
 const trim = value => value.slice(1, -1);
 
@@ -128,6 +152,8 @@ const classify = function(value, line, column) {
 
     if (statuses.includes(value)) return init("Status");
 
+    if (pointers.includes(value)) return init("Pointer");
+
     if (isDigitalLiteral(value)) return init("Digit");
 
     if (isDecimalLiteral(value)) return init("Decimal");
@@ -136,9 +162,21 @@ const classify = function(value, line, column) {
 
     if (isCharacterLiteral(value)) return init("Character", trim(value));
 
+    if (isLoop(value)) return init("Loop");
+
+    if (isSkip(value)) return init("Skip");
+
+    if (isNewline(value)) return init("Newline");
+
     if (isLabelReference(value)) return init("Reference");
 
-    if (isLabelAssignment(value)) return init("Assignment", trimtail(value));
+    if (isLabelAssignment(value)) {
+
+        const label = trimtail(value);
+
+        if (words.includes(label)) throw new LabelError(label, line, column);
+        else return init("Assignment", label);
+    }
 
     if (terminators.includes(value)) {
 
@@ -173,9 +211,15 @@ const isDigitalLiteral = value => (/^[0-9]$/).test(value);
 
 const isHexadecimalLiteral = value => (/^#[0-9A-F]{2}$/).test(value);
 
+const isLabelAssignment = value => (/^[a-zA-Z][a-zA-Z0-9]*:$/).test(value);
+
 const isLabelReference = value => (/^[a-zA-Z][a-zA-Z0-9]*$/).test(value);
 
-const isLabelAssignment = value => (/^[a-zA-Z][a-zA-Z0-9]*:$/).test(value);
+const isLoop = value => (/^<{1,4}$/).test(value);
+
+const isSkip = value => (/^>{1,4}$/).test(value);
+
+const isNewline = value => (/^\|{1,2}$/).test(value);
 
 const isLexeme = value => value && not(terminators.includes(value));
 

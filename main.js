@@ -1,4 +1,4 @@
-import { assemble, parse, tokenize } from "./zen80.js";
+import { assemble } from "./zen80.js";
 
 
 
@@ -34,8 +34,25 @@ ctz, nsa, clz, lock [], free 1, lock, free [#90]
 push, push x, pop y, pop fx, push pc, pop sp
 drop, peek, dupe, databank, copyio
 queue '1', queue [], queue x
-test: load 's'
+test: load <
 `;
 
-for (let item of assemble(source)) console.log(item);
-// console.log(assemble(source));
+
+source = `
+message: DATA "abc" 1 3 -45, ASSIGN: 1
+spam: +10
+a: LOCATE 2
+DATA "ABC" | "abc" || "123 456"
+div 8, add 1, fork <<, load 3, foobar: 'LF'
+b: LOCATE [#20]
+div 8, add 1
+load >, inc
+
+    LOCATE 3 [+200]
+
+    div 8, add 1
+    eq 0, fork >>, add b, add spam
+    add 1, sub message
+`;
+
+for (const byte of assemble(source, 4)) console.log("output:", byte);

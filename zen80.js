@@ -1,15 +1,100 @@
-import {parse} from "./parse.js";
-import {tokenize} from "./tokenize.js";
+import { numericTypes, vectorTypes, controlCharacters } from "./tokenize.js";
+import { register, GrammaticalError } from "./compile.js";
+import { assemble } from "./assemble.js";
 
-import {
-    assemble, get, num, reg, register,
-    registerBranchOperation, registerSimpleOperation,
-    registerUnaryOperation, registerBinaryOperation
-} from "./assemble.js";
+export { assemble } // expose the entrypoint
 
-//// EXPOSE THE THREE AVAILABLE FUNCTIONS OF PUBLIC API...
+//// DEFINE THE DSL FOR REGISTERING THE INSTRUCTION GRAMMARS...
 
-export { assemble, parse, tokenize };
+const get = function(instruction, ...args) {
+
+    /* This helper takes an instruction and one or two indices. It uses
+    the first index to refer to a child of the instruction. When present,
+    the second index is used to index the child (which implies an array).
+    In either case, the function returns the result.
+
+    This function compliments `reg` and `num`, and together these three
+    helpers form a mini DSL that can be used to easily define callbacks
+    suitable for passing to `register`. */
+
+    const [x, y] = args;
+    const children = instruction.children;
+
+    return args.length === 1 ? children[x] : children[x][y];
+};
+
+const reg = function(code, register) {
+
+    /* This helper takes a base opcode (the lowest opcode in a mnemonic
+    group) and a register token. It enumerates the register, adds the
+    enumeration to the code, and returns the result. Also see `get`. */
+
+    return code + ["x", "y", "z", "pc", "sp", "fx"].indexOf(register.value);
+};
+
+const num = function(literal) {
+
+    /* This helper takes some kind of number literal, reference or vector,
+    and returns its numerical value (resolving references automatically).
+    Note that negative numbers are replaced with the equivalent positive
+    number (-1 becomes +255 etc). Also see `get`. */
+
+    const {type, value} = literal;
+
+    if (["Reference", "Loop", "Skip"].includes(type)) return literal;
+
+    if (type === "Character") {
+
+        if (value.length === 1) return value.charCodeAt();
+        else return controlCharacters[value];
+    }
+
+    const result = parseInt(value.replace("#", "0x"));
+
+    return result >= 0 ? result : 256 + result;
+};
+
+//// DEFINE THE LOCAL HELPER FUNCTIONS FOR REGISTERING THE GRAMMARS...
+
+const registerUnaryOperation = function(name, opcode) {
+
+    /* This helper takes a unary mnemonic string and the base opcode for
+    the mnemonic (the lowest opcode used by the group). It registers the
+    required handlers, computing any patterns and opcodes as required. */
+
+    register(name, opcode);
+    register(`${name} []`, opcode + 1);
+};
+
+const registerBinaryOperation = function(name, opcode) {
+
+    /* This helper takes a binary mnemonic string and the base opcode for
+    the mnemonic, and registers the required patterns and handlers. */
+
+    register(`${name} <Number>`, i => [opcode, num(get(i, 0))]);
+    register(`${name} <Index>`, i => [reg(opcode + 1, get(i, 0))]);
+    register(`${name} []`, opcode + 4);
+};
+
+const registerBranchOperation = function(name, opcode) {
+
+    /* This helper takes a branch mnemonic string and the base opcode for
+    the mnemonic, and registers the required patterns and handlers. */
+
+    register(name, opcode);
+    register(`${name} <Number>`, i => [opcode + 1, num(get(i, 0))]);
+    register(`${name} [<Number>]`, i => [opcode + 2, num(get(i, 0, 0))]);
+    register(`${name} []`, opcode + 3);
+};
+
+const registerSimpleOperation = function(name, opcode) {
+
+    /* This helper takes a mnemonic string for an instruction that operates
+    on a single register (any register) and the base opcode for the mnemonic,
+    and registers the required patterns and handlers. */
+
+    register(`${name} <Register>`, i => [reg(opcode, get(i, 0))]);
+};
 
 //// REGISTER ALL OF THE INSTRUCTION GRAMMARS WITH THEIR HANDLERS...
 
@@ -114,3 +199,38 @@ register("copydata", 0xF1);
 register("copycode", 0xF2);
 register("copystack", 0xF3);
 register("copyio", 0xF4);
+
+register("ASSIGN <Number>", i => [num(get(i, 0))]);
+
+register("LOCATE <Number>", i => [0, num(get(i, 0))]);
+register("LOCATE [<Number>]", i => [1, num(get(i, 0, 0))]);
+register("LOCATE <Number> [<Number>]", i => [2, num(get(i, 0)), num(get(i, 1, 0))]);
+
+register("DATA", function(instruction) {
+
+    const output = new Array();
+
+    for (const child of instruction.children) {
+
+        const { type, value } = child;
+
+        if (numericTypes.includes(type)) {
+
+            if (vectorTypes.includes(type)) {
+
+                throw new GrammaticalError("a Datum", child);
+
+            } else output.push(num(child));
+
+        } else if (type === "String") {
+
+            for (const character of value) output.push(character.charCodeAt());
+
+        } else if (type === "Newline") {
+
+            for (const character of value) output.push(0x0A);
+
+        } else throw new GrammaticalError("a Datum", child);
+
+    } return output;
+});

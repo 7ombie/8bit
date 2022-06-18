@@ -1,20 +1,21 @@
-import { tokenize, AssemblySyntaxError } from "./tokenize.js";
+import {not, tokenize } from "./tokenize.js";
+import {numericTypes, AssemblySyntaxError } from "./tokenize.js";
 
 //// INITIALIZE MODULE-lEVEL GLOBAL VARIABLES...
 
 let TOKEN, TOKENS;
 
-//// DEFINE THE CUSTOM ERROR CLASSES FOR THE PARSER MODULE...
+//// DEFINE THE CUSTOM ERROR CLASSES...
 
 class GrammaticalError extends AssemblySyntaxError {
 
-    /* This custom error class is thrown when a mnemonic is expected
-    (at the start of an instruction), but something else was found. */
+    /* This custom error class is thrown when one type is expected
+    and something else wisas found. */
 
     constructor(expected) {
 
         const { line, column } = TOKEN.location;
-        const message = `expected an initial Mnemonic (not ${TOKEN.type}).`;
+        const message = `expected ${expected} (not ${TOKEN.type}).`;
 
         super(message, line, column);
     }
@@ -41,26 +42,38 @@ class NestingError extends AssemblySyntaxError {
 
 const initialize = function(label) {
 
-    /* This helper initializes an instruction hash, populates its
-    child-array, adds the location of its termination, and returns
-    the result. This helper leaves the parser on the terminator. */
+    /* This helper initializes an instruction (or directive) hash,
+    populates its child-array, and returns the result, leaving the
+    parser on the terminator. */
 
+    const directives = ["CORES", "BANKS", "LOCATE", "DATA"];
     const instruction = Object.create(null);
 
-    instruction.constant = label;
+    instruction.label = label;
     instruction.mnemonic = TOKEN.value;
     instruction.location = TOKEN.location;
     instruction.children = gatherChildren();
+    instruction.directive = directives.includes(instruction.mnemonic);
 
     return instruction;
 };
 
-const advance = function() {
+const assign = function(label) {
 
-    /* This helper advances the token stream by one token, updating
-    the global `TOKEN` variable, and returnig a reference to it. */
+    /* This function implements `initialize` for the `ASSIGN` directive,
+    which is special-cased, as it is implied in the source by assigning
+    a label to a number literal. */
 
-    return TOKEN = TOKENS.next().value;
+    const instruction = Object.create(null);
+
+    instruction.label = label;
+    instruction.mnemonic = "ASSIGN";
+    instruction.location = label.location;
+    instruction.children = [TOKEN];
+    instruction.directive = true;
+
+    if (advance().type === "Terminator") return instruction;
+    else throw new GrammaticalError("a Terminator");
 };
 
 const gatherChildren = function(nested=false) {
@@ -85,6 +98,14 @@ const gatherChildren = function(nested=false) {
     if (nested) { throw new NestingError(true) } else return children;
 };
 
+const advance = function() {
+
+    /* This helper advances the token stream by one token, updating
+    the global `TOKEN` variable, and returnig a reference to it. */
+
+    return TOKEN = TOKENS.next().value;
+};
+
 //// DEFINE AND EXPORT ENTRYPOINT PARSE FUNCTION...
 
 export const parse = function * (source) {
@@ -103,7 +124,10 @@ export const parse = function * (source) {
         if (TOKEN.type === "Assignment") { label = TOKEN; advance() }
         else label = undefined;
 
-        if (TOKEN.type === "Mnemonic") yield initialize(label);
+        const type = TOKEN.type;
+
+        if (type === "Mnemonic") yield initialize(label);
+        else if (label && numericTypes.includes(type)) yield assign(label);
         else throw new GrammaticalError("a Mnemonic");
     }
 };
