@@ -2,18 +2,18 @@ import { not, AssemblySyntaxError } from "./tokenize.js";
 import { numericTypes, vectorTypes, registerTypes } from "./tokenize.js";
 import { parse } from "./parse.js";
 
-//// INITIALIZE THE GLOBAL HANDLERS HASH (WHICH IS CONSTANT)...
+//// INITIALIZE THE GLOBAL HANDLERS HASH (WHICH IS CONSTANT AT RUNTIME)...
 
 const HANDLERS = Object.create(null);
 
-//// DEFINE SOME USEFUL STRING ARRAYS...
+//// GENERATE THE (OBLIGATORY) STRING ARRAYS...
 
 const type2class = type => `<${type}>`;
 
 const registerClasses = registerTypes.map(type2class);
 const numericClasses = numericTypes.map(type2class);
 
-//// DEFINE THE CUSTOM ERROR CLASS FOR THE CODEGEN MODULE...
+//// DEFINE THE CUSTOM ERROR CLASSES...
 
 class SemanticError extends AssemblySyntaxError {
 
@@ -75,7 +75,8 @@ export class GrammaticalError extends AssemblySyntaxError {
 
     /* This custom error class is thrown when one type is expected
     and something else is found. Note that `parse.js` defines the
-    same class, with a slightly different constructor. */
+    same class, with a slightly different constructor, and that
+    this class is exported to `cpu.js` (which uses it as is). */
 
     constructor(expected, found) {
 

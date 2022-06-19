@@ -1,6 +1,8 @@
 import { not, AssemblySyntaxError } from "./tokenize.js";
 import { compile } from "./compile.js";
 
+//// DEFINE THE CUSTOM ERROR CLASSES...
+
 class VectorError extends AssemblySyntaxError {
 
     /* This custom error class is thrown when an implicit reference points
@@ -32,24 +34,42 @@ class ReferenceError extends AssemblySyntaxError {
     }
 }
 
-//// DEFINE AND EXPORT THE ENTRYPOINT CODEGEN FUNCTION...
+//// DEFINE THE ONLY LOCAL HELPER FUNCTION...
+
+const initialize = function(userInput) {
+
+    /* This helper takes a user input hash, compiles it to a program hash,
+    adds a `memory` property with the given number of banks, and returns
+    the result (ready for final assembly). */
+
+    const banks = userInput.banks;
+    const program = compile(userInput);
+    const memory = Array(banks).fill().map(slot => new Uint8Array(256));
+
+    Object.assign(program, {memory});
+
+    return program;
+};
+
+//// DEFINE AND EXPORT THE ENTRYPOINT ASSEMBLER FUNCTION...
 
 export const assemble = function(userInput) {
 
     /* This is the primary API function for the language assembler. It takes
-    a source string and the number of RAM banks in the system, and assembles
-    the source, returning an array of `Uint8Array(256)`s, one per RAM bank,
-    populated with the assembled code, ready for execution. */
-
-    const init = banks => Array(banks).fill().map(slot => new Uint8Array(256));
+    a user input hash, containing the source string (`source`) and the number
+    of RAM banks (`banks`). The function assembles the source, and returns a
+    regular array of `Uint8Array` instances, one per RAM bank, that are pop-
+    ulated with the assembled code, with any references and vectors fully
+    resolved (ready for execution). */
 
     const skip = function(token, bank, address, index, stepper) {
 
         /* This local helper takes a vector token, its bank and address, the
         index of the instruction it belongs to, and a function that expresses
         the operation (addition or subtraction) that determines the direction
-        of the vector. If the vector is valid, the implied address is written
-        to `ram`. Otherwise, a `VectorError` is thrown. */
+        of the vector (forwards or backwards, respectively). Assuming a valid
+        vector, the referenced address is written to `memory[bank][address]`.
+        Otherwise, a `VectorError` is thrown. */
 
         let candidate;
 
@@ -61,11 +81,10 @@ export const assemble = function(userInput) {
             else throw new VectorError(token, candidate, step);
         }
 
-        ram[bank][address] = candidate.address;
+        memory[bank][address] = candidate.address;
     };
 
-    const ram = init(userInput.banks);
-    const {instructions, labels} = compile(userInput);
+    const {memory, instructions, labels} = initialize(userInput);
 
     instructions.forEach(function(instruction, index) {
 
@@ -74,7 +93,7 @@ export const assemble = function(userInput) {
             const bank = instruction.bank;
             const address = instruction.address + offset;
 
-            if (byte instanceof Object) { // vectors and references...
+            if (byte instanceof Object) {
 
                 if (byte.type === "Loop") {
 
@@ -86,13 +105,13 @@ export const assemble = function(userInput) {
 
                 } else if (byte.value in labels) {
 
-                    ram[bank][address] = labels[byte.value];
+                    memory[bank][address] = labels[byte.value];
 
                 } else throw new ReferenceError(byte);
 
-            } else ram[bank][address] = byte; // ready, compiled bytes...
+            } else memory[bank][address] = byte;
         });
     });
 
-    return ram;
+    return memory;
 };

@@ -6,6 +6,8 @@ import { parse } from "./parse.js";
 import { compile } from "./compile.js";
 import { assemble } from "./assemble.js";
 
+//// EXPORT THE API FUNCTIONS THAT MAKE UP THE LIBRARY...
+
 export { assemble, compile, parse, tokenize }
 
 //// DEFINE THE DSL FOR REGISTERING THE INSTRUCTION GRAMMARS...
@@ -204,7 +206,7 @@ register("copycode", 0xF2);
 register("copystack", 0xF3);
 register("copyio", 0xF4);
 
-register("ASSIGN <Number>", i => [num(get(i, 0))]);
+register("ASSIGN <Number>", i => [num(get(i, 0))]); // pseudo-mnemonic
 
 register("LOCATE <Number>", i => [0, num(get(i, 0))]);
 register("LOCATE [<Number>]", i => [1, num(get(i, 0, 0))]);

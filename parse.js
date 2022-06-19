@@ -1,7 +1,7 @@
 import {not, tokenize } from "./tokenize.js";
 import {numericTypes, AssemblySyntaxError } from "./tokenize.js";
 
-//// INITIALIZE MODULE-lEVEL GLOBAL VARIABLES...
+//// DECLARE THE MODULE-lEVEL GLOBAL VARIABLES...
 
 let TOKEN, TOKENS;
 
@@ -38,7 +38,7 @@ class NestingError extends AssemblySyntaxError {
     }
 }
 
-//// DEFINE ANY LOCAL HELPER FUNCTIONS...
+//// DEFINE THE LOCAL HELPER FUNCTIONS...
 
 const initialize = function(label) {
 
@@ -76,6 +76,14 @@ const assign = function(label) {
     else throw new GrammaticalError("a Terminator");
 };
 
+const advance = function() {
+
+    /* This helper advances the token stream by one token, updating
+    the global `TOKEN` variable, and returnig a reference to it. */
+
+    return TOKEN = TOKENS.next().value;
+};
+
 const gatherChildren = function(nested=false) {
 
     /* This recursive function gathers the child token array of the
@@ -98,15 +106,7 @@ const gatherChildren = function(nested=false) {
     if (nested) { throw new NestingError(true) } else return children;
 };
 
-const advance = function() {
-
-    /* This helper advances the token stream by one token, updating
-    the global `TOKEN` variable, and returnig a reference to it. */
-
-    return TOKEN = TOKENS.next().value;
-};
-
-//// DEFINE AND EXPORT ENTRYPOINT PARSE FUNCTION...
+//// DEFINE AND EXPORT THE API PARSE FUNCTION...
 
 export const parse = function * (userInput) {
 

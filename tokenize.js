@@ -1,4 +1,4 @@
-//// DEFINE MODULE-WIDE GLOBAL VARIABLES...
+//// DECLARE THE ONLY MODULE-WIDE GLOBAL VARIABLE...
 
 let PREVIOUS_TOKEN;
 
@@ -44,7 +44,9 @@ export const numericTypes = [
     "Loop", "Skip", "Character", "Reference"
 ];
 
-//// DEFINE AND EXPORT THE ASCII CONTROL CHARACTER MAP...
+//// DEFINE AND EXPORT THE NOT-HELPER AND ASCII CONTROL CHARACTER MAP...
+
+export const not = arg => ! arg;
 
 export const controlCharacters = {
     NUL: 0x00, SOH: 0x01, STX: 0x02, ETX: 0x03,
@@ -57,7 +59,7 @@ export const controlCharacters = {
      FS: 0x1C,  GS: 0x1D,  RS: 0x1E,  US: 0x1F, DEL: 0x7F
 };
 
-//// DEFINE CUSTOM SYNTAX ERROR CLASSES...
+//// DEFINE CUSTOM SYNTAX ERROR CLASSES AND EXPORT THE BASE CLASS...
 
 export class AssemblySyntaxError extends Error {
 
@@ -146,9 +148,7 @@ const isNewline = value => (/^\|{1,2}$/).test(value);
 
 const isLexeme = value => value && not(terminators.includes(value));
 
-//// DEFINE ANY LOCAL HELPER FUNCTIONS...
-
-export const not = arg => ! arg;
+//// DEFINE THE LOCAL HELPER FUNCTIONS...
 
 const trim = value => value.slice(1, -1);
 
@@ -223,7 +223,7 @@ const classify = function(value, line, column) {
     throw new TokenError(value, line, column);
 };
 
-//// DEFINE AND EXPORT THE ENTRYPOINT TOKENIZER FUNCTION...
+//// DEFINE AND EXPORT THE API TOKENIZER FUNCTION...
 
 export const tokenize = function * (userInput) {
 
