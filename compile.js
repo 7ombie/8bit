@@ -1,4 +1,4 @@
-import { not, AssemblySyntaxError } from "./tokenize.js";
+import { not, merge, AssemblySyntaxError } from "./tokenize.js";
 import { numericTypes, vectorTypes, registerTypes } from "./tokenize.js";
 import { parse } from "./parse.js";
 
@@ -211,7 +211,7 @@ export const compile = function (userInput) {
         if (handler) instructions.push(instruction);
         else throw new SemanticError(instruction, pattern);
 
-        Object.assign(instruction, {address, bank, code: []});
+        merge(instruction, {address, bank, code: []});
 
         if (instruction.directive) { // assembler directives...
 
@@ -236,7 +236,7 @@ export const compile = function (userInput) {
 
                 if (isVoid(bank)) throw new VoidBankError(instruction, bank);
 
-                Object.assign(instruction, {address, bank});
+                merge(instruction, {address, bank});
                 assign(instruction.label, address);
             }
 

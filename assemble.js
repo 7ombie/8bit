@@ -1,4 +1,4 @@
-import { not, AssemblySyntaxError } from "./tokenize.js";
+import { not, merge, AssemblySyntaxError } from "./tokenize.js";
 import { compile } from "./compile.js";
 
 //// DEFINE THE CUSTOM ERROR CLASSES...
@@ -46,9 +46,7 @@ const initialize = function(userInput) {
     const program = compile(userInput);
     const memory = Array(banks).fill().map(slot => new Uint8Array(256));
 
-    Object.assign(program, {memory});
-
-    return program;
+    return merge(program, {memory});
 };
 
 //// DEFINE AND EXPORT THE ENTRYPOINT ASSEMBLER FUNCTION...
@@ -62,7 +60,7 @@ export const assemble = function(userInput) {
     ulated with the assembled code, with any references and vectors fully
     resolved (ready for execution). */
 
-    const skip = function(token, bank, address, index, stepper) {
+    const vector = function(token, bank, address, index, stepper) {
 
         /* This local helper takes a vector token, its bank and address, the
         index of the instruction it belongs to, and a function that expresses
@@ -97,11 +95,11 @@ export const assemble = function(userInput) {
 
                 if (byte.type === "Loop") {
 
-                    skip(byte, bank, address, index, (i, s) => i - s);
+                    vector(byte, bank, address, index, (i, s) => i - s);
 
                 } else if (byte.type === "Skip") {
 
-                    skip(byte, bank. address, index, (i, s) => i + s);
+                    vector(byte, bank. address, index, (i, s) => i + s);
 
                 } else if (byte.value in labels) {
 

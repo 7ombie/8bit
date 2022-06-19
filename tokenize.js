@@ -44,9 +44,11 @@ export const numericTypes = [
     "Loop", "Skip", "Character", "Reference"
 ];
 
-//// DEFINE AND EXPORT THE NOT-HELPER AND ASCII CONTROL CHARACTER MAP...
+//// DEFINE AND EXPORT THE HELPERS AND THE ASCII CONTROL CHARACTER MAP...
 
 export const not = arg => ! arg;
+
+export const merge = (target, values) => Object.assign(target, values);
 
 export const controlCharacters = {
     NUL: 0x00, SOH: 0x01, STX: 0x02, ETX: 0x03,
