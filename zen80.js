@@ -1,8 +1,12 @@
 import { numericTypes, vectorTypes, controlCharacters } from "./tokenize.js";
 import { register, GrammaticalError } from "./compile.js";
+
+import { tokenize } from "./tokenize.js";
+import { parse } from "./parse.js";
+import { compile } from "./compile.js";
 import { assemble } from "./assemble.js";
 
-export { assemble } // expose the entrypoint
+export { assemble, compile, parse, tokenize }
 
 //// DEFINE THE DSL FOR REGISTERING THE INSTRUCTION GRAMMARS...
 

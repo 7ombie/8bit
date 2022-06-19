@@ -2,7 +2,7 @@ import { not, AssemblySyntaxError } from "./tokenize.js";
 import { numericTypes, vectorTypes, registerTypes } from "./tokenize.js";
 import { parse } from "./parse.js";
 
-//// INITIALIZE MODULE-lEVEL GLOBAL VARIABLES...
+//// INITIALIZE THE GLOBAL HANDLERS HASH (WHICH IS CONSTANT)...
 
 const HANDLERS = Object.create(null);
 
@@ -172,7 +172,7 @@ export const register = function(...args) {
 
 //// DEFINE AND EXPORT THE ENTRYPOINT COMPILE FUNCTION...
 
-export const compile = function (source, banks) {
+export const compile = function (userInput) {
 
     /* This function takes a source string, and the number of banks (taken
     from the UI). The function parses the source, then validates and final-
@@ -184,6 +184,8 @@ export const compile = function (source, banks) {
     References and Vector tokens unresolved, to be handled during the next
     phase (`assemble`), as the code needs to have been fully parsed to
     resolve forward-references *et cetera*. */
+
+    const isVoid = bank => bank >= userInput.banks;
 
     const assign = function(label, address) {
 
@@ -200,7 +202,7 @@ export const compile = function (source, banks) {
 
     const [instructions, labels] = [new Array(), Object.create(null)];
 
-    for (const instruction of parse(source)) {
+    for (const instruction of parse(userInput)) {
 
         const pattern = serialize(instruction);
         const handler = HANDLERS[pattern];
@@ -231,7 +233,7 @@ export const compile = function (source, banks) {
                 else if (code === 1) address = args[0];
                 else [bank, address] = args;
 
-                if (bank >= banks) throw new VoidBankError(instruction, bank);
+                if (isVoid(bank)) throw new VoidBankError(instruction, bank);
 
                 Object.assign(instruction, {address, bank});
                 assign(instruction.label, address);

@@ -111,6 +111,41 @@ class LabelError extends AssemblySyntaxError {
     }
 }
 
+//// DEFINE THE VALUE-TYPE-TEST BOOLEAN FUNCTIONS...
+
+const isDecimalLiteral = function(value) {
+
+    const regex = /^[+-][0-9]{1,3}$/;
+
+    if (not(regex.test(value)) || value === "-0") return false;
+
+    const number = parseInt(value);
+
+    return number >= -128 && number <= +255;
+};
+
+const isCharacterLiteral = function(value) {
+
+    if ((/^'[ -~]{1}'$/).test(value)) return true;
+    else return trim(value) in controlCharacters;
+};
+
+const isDigitalLiteral = value => (/^[0-9]$/).test(value);
+
+const isHexadecimalLiteral = value => (/^#[0-9A-F]{2}$/).test(value);
+
+const isLabelAssignment = value => (/^[a-zA-Z][a-zA-Z0-9]*:$/).test(value);
+
+const isLabelReference = value => (/^[a-zA-Z][a-zA-Z0-9]*$/).test(value);
+
+const isLoop = value => (/^<{1,4}$/).test(value);
+
+const isSkip = value => (/^>{1,4}$/).test(value);
+
+const isNewline = value => (/^\|{1,2}$/).test(value);
+
+const isLexeme = value => value && not(terminators.includes(value));
+
 //// DEFINE ANY LOCAL HELPER FUNCTIONS...
 
 export const not = arg => ! arg;
@@ -188,44 +223,9 @@ const classify = function(value, line, column) {
     throw new TokenError(value, line, column);
 };
 
-//// DEFINE THE BOOLEAN VALUE TEST FUNCTIONS...
-
-const isDecimalLiteral = function(value) {
-
-    const regex = /^[+-][0-9]{1,3}$/;
-
-    if (not(regex.test(value)) || value === "-0") return false;
-
-    const number = parseInt(value);
-
-    return number >= -128 && number <= +255;
-};
-
-const isCharacterLiteral = function(value) {
-
-    if ((/^'[ -~]{1}'$/).test(value)) return true;
-    else return trim(value) in controlCharacters;
-};
-
-const isDigitalLiteral = value => (/^[0-9]$/).test(value);
-
-const isHexadecimalLiteral = value => (/^#[0-9A-F]{2}$/).test(value);
-
-const isLabelAssignment = value => (/^[a-zA-Z][a-zA-Z0-9]*:$/).test(value);
-
-const isLabelReference = value => (/^[a-zA-Z][a-zA-Z0-9]*$/).test(value);
-
-const isLoop = value => (/^<{1,4}$/).test(value);
-
-const isSkip = value => (/^>{1,4}$/).test(value);
-
-const isNewline = value => (/^\|{1,2}$/).test(value);
-
-const isLexeme = value => value && not(terminators.includes(value));
-
 //// DEFINE AND EXPORT THE ENTRYPOINT TOKENIZER FUNCTION...
 
-export const tokenize = function * (source) {
+export const tokenize = function * (userInput) {
 
     /* This entrypoint generator takes a source string and yields its
     tokens one at a time. Note that line, column and terminal numbers
@@ -233,7 +233,7 @@ export const tokenize = function * (source) {
 
     const on = candidates => candidates.includes(character);
 
-    const at = candidates => candidates.includes(source[index + 1]);
+    const at = candidates => candidates.includes(userInput.source[index + 1]);
 
     const validateCloseQuote = function(value) {
 
@@ -309,20 +309,16 @@ export const tokenize = function * (source) {
             return not(ordinal < 0x20 || ordinal > 0x7F);
         };
 
-        if ((character = source[++index]) === undefined) return;
+        if (not(character = userInput.source[++index])) return undefined;
 
         if (legal(character)) return character;
         else throw new CharacterError(character, line, index - edge);
     };
 
-    // initialize the local variables that are accessed throughout this
-    // function and the functions defined inside it...
-
     let [character, value, token] = ["", "", undefined];
     let [index, line, column, edge] = [-1, 1, 1, -1];
 
-    // gather and yield one token per iteration (ignoring comments and
-    // insignificant whitespace)...
+    PREVIOUS_TOKEN = undefined;
 
     while (advance()) {
 

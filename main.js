@@ -39,20 +39,17 @@ test: load <
 
 
 source = `
-message: DATA "abc" 1 3 -45, ASSIGN: 1
-spam: +10
-a: LOCATE 2
-DATA "ABC" | "abc" || "123 456"
+player: #28, lives: #30, score: #31
+
+load x [lives]
+
 div 8, add 1, fork <<, load 3, foobar: 'LF'
-b: LOCATE [#20]
-div 8, add 1
-load >, inc
 
-    LOCATE 3 [+200]
+LOCATE 1 [+200]
 
-    div 8, add 1
-    eq 0, fork >>, add b, add spam
-    add 1, sub message
+inc, inc, sub 5, mod 2, mul +100
 `;
 
-for (const byte of assemble(source, 4)) console.log("output:", byte);
+// for (const byte of assemble(source, 4)) console.log("output:", byte);
+
+console.log(assemble({source, banks: 2}));

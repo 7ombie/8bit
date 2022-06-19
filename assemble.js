@@ -34,15 +34,22 @@ class ReferenceError extends AssemblySyntaxError {
 
 //// DEFINE AND EXPORT THE ENTRYPOINT CODEGEN FUNCTION...
 
-export const assemble = function * (source, banks) {
+export const assemble = function(userInput) {
 
-    const skip = function(token, index, stepper) {
+    /* This is the primary API function for the language assembler. It takes
+    a source string and the number of RAM banks in the system, and assembles
+    the source, returning an array of `Uint8Array(256)`s, one per RAM bank,
+    populated with the assembled code, ready for execution. */
 
-        /* This local helper takes a vector token, the index of the current
-        instruction, and a function that either adds or subtracts the step
-        from the index (permitting the helper to skip in both directions).
-        If the helper is able to complete the skip, then it returns the
-        implied address. Otherwise, a `VectorError` is thrown. */
+    const init = banks => Array(banks).fill().map(slot => new Uint8Array(256));
+
+    const skip = function(token, bank, address, index, stepper) {
+
+        /* This local helper takes a vector token, its bank and address, the
+        index of the instruction it belongs to, and a function that expresses
+        the operation (addition or subtraction) that determines the direction
+        of the vector. If the vector is valid, the implied address is written
+        to `ram`. Otherwise, a `VectorError` is thrown. */
 
         let candidate;
 
@@ -52,36 +59,40 @@ export const assemble = function * (source, banks) {
 
             if (candidate && not(candidate.directive)) continue;
             else throw new VectorError(token, candidate, step);
+        }
 
-        } return candidate.address;
+        ram[bank][address] = candidate.address;
     };
 
-    const { instructions, labels } = compile(source, banks);
+    const ram = init(userInput.banks);
+    const {instructions, labels} = compile(userInput);
 
-    console.log("LABELS:", labels);
+    instructions.forEach(function(instruction, index) {
 
-    for (let index = 0; index < instructions.length; index++) {
+        instruction.code.forEach(function(byte, offset) {
 
-        const instruction = instructions[index];
+            const bank = instruction.bank;
+            const address = instruction.address + offset;
 
-        console.log(instruction);
+            if (byte instanceof Object) { // vectors and references...
 
-        for (const byte of instruction.code) if (byte instanceof Object) {
+                if (byte.type === "Loop") {
 
-            if (byte.type === "Loop") { // resolve any references...
+                    skip(byte, bank, address, index, (i, s) => i - s);
 
-                yield skip(byte, index, (index, step) => index - step);
+                } else if (byte.type === "Skip") {
 
-            } else if (byte.type === "Skip") {
+                    skip(byte, bank. address, index, (i, s) => i + s);
 
-                yield skip(byte, index, (index, step) => index + step);
+                } else if (byte.value in labels) {
 
-            } else if (byte.type === "Reference") {
+                    ram[bank][address] = labels[byte.value];
 
-                if (byte.value in labels) yield labels[byte.value];
-                else throw new ReferenceError(byte);
-            }
+                } else throw new ReferenceError(byte);
 
-        } else yield byte; // or just yield the given byte
-    }
+            } else ram[bank][address] = byte; // ready, compiled bytes...
+        });
+    });
+
+    return ram;
 };

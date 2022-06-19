@@ -108,7 +108,7 @@ const advance = function() {
 
 //// DEFINE AND EXPORT ENTRYPOINT PARSE FUNCTION...
 
-export const parse = function * (source) {
+export const parse = function * (userInput) {
 
     /* This entrypoint generator takes a source string, tokenizes it,
     then parses the token stream into a parse tree that will be valid
@@ -117,7 +117,7 @@ export const parse = function * (source) {
 
     let label;
 
-    TOKENS = tokenize(source);
+    TOKENS = tokenize(userInput);
 
     while (advance().type !== "EOF") {
 
